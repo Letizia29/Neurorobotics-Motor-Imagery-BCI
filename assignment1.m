@@ -17,10 +17,11 @@ addpath(fullfile(pwd, "functions/"))
 addpath(fullfile(pwd, "Toolboxes\biosig\biosig\t200_FileAccess/"))
 addpath(fullfile(pwd, "Toolboxes\biosig\biosig\t250_ArtifactPreProcessingQualityControl/"))
 
+% Loading Laplacian Mask
+load('laplacian16.mat');
 
 %% Data loading
-% for each subject, we have to load each run and compute their PSD
-% maybe we should write a function for PSD computation and saving
+% for each subject, loading of each run and application of Laplacian filter
 
 addpath(genpath(fullfile(pwd, "Data/")))
 m = "_micontinuous";
@@ -40,16 +41,22 @@ for i = 1:length(data)
     for j = 1:length(runs_names)
         run_name = runs_names{j};
         if run_name(1) == 'a' % actual run
+
             % load data
             [s, h] = sload(run_name);
+
+            % Laplacian masking (pre-processing)
+            s = s(:,1:16)*lap;
+
             % save data
+            % offline run
             if run_name(21:27) == 'offline'
                 count_off = count_off + 1;
                 field_name = strcat("offline",string(count_off));
                 subjects.(subj_name).(field_name).s = s;
                 subjects.(subj_name).(field_name).h = h;
             end
-
+            % online run
             if run_name(21:26) == 'online'
                 count_on = count_on + 1;
                 field_name = strcat("online",string(count_on));
@@ -60,48 +67,60 @@ for i = 1:length(data)
     end
 end
 
-%% DA AGGIUNGERE DIRETTAMENTE DENTRO IL CICLO?
-%% Preprocessing
 
-% Laplacian masking
-mask = load('laplacian16.mat');
+%% Process the data through log band power computation and ERD/ERS
 
-% Remove additional channel
-if size(s1, 2) > 16
-    s1(:, 17:end) = [];
+% for each subject, concatenate the offline files, compute log band power
+% and ERD/ERS for each trial, compute the average among trials
+% Grand average (whole population analysis): average the values found among
+% subjects
+% analize if some subjects are far from the avg
+
+sample_rate = 512; % Hz
+
+%% Concatenate signals and events' types, positions, durations for each subject
+for i = 1:length(data)
+    subj_name = data(i); % one subject
+    runs_names = fieldnames(subjects.(subj_name)); % his runs
+    subjects.(subj_name).s_c = [];
+    subjects.(subj_name).POS = [];
+    subjects.(subj_name).DUR = [];
+    subjects.(subj_name).TYP = [];
+
+    for j = 1:length(runs_names)
+        
+        if runs_names{j}(1:7) == 'offline'  
+            subjects.(subj_name).DUR = [subjects.(subj_name).DUR; subjects.(subj_name).(runs_names{j}).h.EVENT.DUR];
+            subjects.(subj_name).TYP = [subjects.(subj_name).TYP; subjects.(subj_name).(runs_names{j}).h.EVENT.TYP];
+            subjects.(subj_name).POS = [subjects.(subj_name).POS; subjects.(subj_name).(runs_names{j}).h.EVENT.POS + length(subjects.(subj_name).s_c)];
+            subjects.(subj_name).s_c = [subjects.(subj_name).s_c; subjects.(subj_name).(runs_names{j}).s];
+        
+        end
+
+    end
+    
 end
 
-if size(s2, 2) > 16
-    s2(:, 17:end) = [];
-end
+%% Data processing
 
 
-%% Initialize useful variables
-
-fs = h1.SampleRate;
-
-N1 = size(s1, 1);
-N2 = size(s2, 1);
-
-nchs = size(s1, 2);
-
-%% Concatenate the files
-
-PSD = [file1.PSD; file2.PSD; file3.PSD];
-
-% Concatenate the events
-h.EVENT.DUR = [file1.h.EVENT.DUR; file2.h.EVENT.DUR; file3.h.EVENT.DUR];
-h.EVENT.TYP = [file1.h.EVENT.TYP; file2.h.EVENT.TYP; file3.h.EVENT.TYP]; 
-h.EVENT.POS = [file1.h.EVENT.POS; file2.h.EVENT.POS + size(file1.PSD, 1); file3.h.EVENT.POS + size(file1.PSD, 1) + size(file2.PSD, 1)];
 
 
-%% Grand average (whole population analysis)
 
-% Possibile idea:
-% Considerare (come ha detto lui) ERD e ERS. Si potrebbero creare degli
-% indici per verificare se un soggetto che si discosta di più dalla media
-% ha delle feature particolari.
 
+%% Feature selection
+% Identify and extract the most relevant features for each subject and on
+% subject average
+
+
+% % Concatenate the files
+% 
+% PSD = [file1.PSD; file2.PSD; file3.PSD];
+% 
+% % Concatenate the events
+% h.EVENT.DUR = [file1.h.EVENT.DUR; file2.h.EVENT.DUR; file3.h.EVENT.DUR];
+% h.EVENT.TYP = [file1.h.EVENT.TYP; file2.h.EVENT.TYP; file3.h.EVENT.TYP]; 
+% h.EVENT.POS = [file1.h.EVENT.POS; file2.h.EVENT.POS + size(file1.PSD, 1); file3.h.EVENT.POS + size(file1.PSD, 1) + size(file2.PSD, 1)];
 
 
 
