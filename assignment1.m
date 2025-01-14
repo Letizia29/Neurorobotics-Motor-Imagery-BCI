@@ -211,11 +211,15 @@ for i = 1:length(data)
     subjects.(subj_name).h_PSD.DUR = DUR;
     subjects.(subj_name).h_PSD.TYP = subjects.(subj_name).h.TYP;
 
-    subjects.(subj_name).vectors = labelVecs(subjects.(subj_name).PSD_c, subjects.(subj_name).h_PSD);
+    subjects.(subj_name).vectors_PSD = labelVecs(subjects.(subj_name).PSD_c, subjects.(subj_name).h_PSD);
     
 end
 
 %% Activity and Reference computation
+
+ax1 = figure(1); 
+% ax1.Name = '';
+ax1.Position = [50,100,1600,600];
 
 for i = 1:length(data)
     subj_name = data(i);
@@ -273,11 +277,11 @@ for i = 1:length(data)
     ERDavg_feet_rot = imrotate(ERDavg_feet(:, :, 9), 90);
 
     % FARE QUALCOSA SU QUESTE OSCENITA'
-    figure();
+    subplot(2, 4, mod(i-1, 8)+1) ;
     imagesc(0:8, f, ERDavg_feet_rot);
     colormap hot
     colorbar
-    clim([min(ERDavg_feet_rot(:)), max(ERDavg_feet_rot(:))])
+    clim([-1.1, 1.7])
     %xlim([0, 48])
     %ylim([0, 50])
     set(gca,'YDir','reverse')
