@@ -3,72 +3,99 @@ function vectors = labelVecs(s, h)
 % This function calculates the label vectors for a given signal s and
 % its information structure h.
 
+% Creation of the label vectors for the provided GDF file
+% Create Tk [trial vector] (1, 2, 3, ... N)
+% Create Fk [fixation periods] (0 or event value)
+% Create Ak [cue periods] (0 or event value)
+% Create CFk [continuous feedback periods] (0 or event value)
+% Create Xk [hit/miss periods] (0 or event value)
+% Create Wk [windows] for PSD
+
+% events codes
+trial_start = 1;
+fixation = 786;
+cue_hand = 773;
+cue_feet = 771;
+cont_feedback = 781;
+hit = 897;
+miss = 898;
+
+
+
 % Initialize the data structures to store the information.
-Tk = zeros(1, size(s, 1)); % Trial vector
-Fk = zeros(1, size(s, 1));
-Ck = zeros(1, size(s, 1));
-CFk = zeros(1, size(s, 1));
-Xk = zeros(1, size(s, 1));
+Tk = zeros(size(s, 1), 1); % Trial vector
+Fk = zeros(size(s, 1), 1);
+Ak = zeros(size(s, 1), 1);
+CFk = zeros(size(s, 1), 1);
+Xk = zeros(size(s, 1), 1);
+Wk = zeros(size(s, 1), 1);
 
-% Find when a trial begins or ends (1 for offline trial beginning, 897 or 898 for online data ending)
-idx_type_init = ((h.EVENT.TYP == 1) | (h.EVENT.TYP == 897 | h.EVENT.TYP == 898));
-num_trials = sum(idx_type_init); % Find the number of trials
+% computation
+trial_number = 0;
 
-% Identify the index of different events
-idx_type_fix = find(h.EVENT.TYP == 786);
-idx_type_cue = find(h.EVENT.TYP == 771 | h.EVENT.TYP == 773 | h.EVENT.TYP == 783);
-idx_type_contfb = find(h.EVENT.TYP == 781);
-idx_type_hitmiss = find(h.EVENT.TYP == 897 | h.EVENT.TYP == 898);
-
-% Ifentify when a precise event happens and its duration
-Tk_pos = h.EVENT.POS(idx_type_init);
-Tk_dur = h.EVENT.DUR(idx_type_init);
-
-Fk_pos = h.EVENT.POS(idx_type_fix);
-Fk_dur = h.EVENT.DUR(idx_type_fix);
-
-Ck_pos = h.EVENT.POS(idx_type_cue);
-Ck_dur = h.EVENT.DUR(idx_type_cue);
-
-CFk_pos = h.EVENT.POS(idx_type_contfb);
-CFk_dur = h.EVENT.DUR(idx_type_contfb);
-
-Xk_pos = h.EVENT.POS(idx_type_hitmiss);
-Xk_dur = h.EVENT.DUR(idx_type_hitmiss);
-
-% Build Tk
-for i = 1 : num_trials-1
-    Tk(Tk_pos(i) : Tk_pos(i+1)) = i;
-end
-
-Tk(Tk_pos(num_trials) : end) = num_trials;
-% I did it here since in the for loop after this one the indeces exceeded
-% the array size.
-
-% Build Fk, Ck, CFk, Xk:
-% The value of an element in each vector will be equal to the code of the
-% specific event
-
-pos_in_trial_Ck = find(h.EVENT.TYP == 773 | h.EVENT.TYP == 771, 1, 'first');
-pos_in_trial_CFk = find(h.EVENT.TYP == 781, 1, 'first');
-pos_in_trial_Xk = find(h.EVENT.TYP == 897 | h.EVENT.TYP == 898, 1, 'first');
-
-% NB THERE ARE SOME PROBLEMS IN THE ONLINE DATA
-for i = 1 : num_trials
-    Fk(Fk_pos(i) : Fk_pos(i)+Fk_dur(i)-1) = 1;
-    Ck(Ck_pos(i) : Ck_pos(i)+Ck_dur(i)-1) = h.EVENT.TYP(pos_in_trial_Ck+4*(i-1));       % Da migliorare ma funziona
-    CFk(CFk_pos(i) : CFk_pos(i)+CFk_dur(i)-1) = h.EVENT.TYP(pos_in_trial_CFk+4*(i-1));
-
-    if(isempty(idx_type_hitmiss) == false)          % Online file: the last event in a trial is a hit or miss
-        Xk(Xk_pos(i) : Xk_pos(i)+Xk_dur(i)-1) = h.EVENT.TYP(pos_in_trial_Xk+4*(i-1));
+for i = 1:length(h.TYP)
+    % extracting trials from fixation to end of continuous feedback period
+    if h.TYP(i,1) == fixation
+        trial_number = trial_number + 1;
+        start = h.POS(i,1);
+        finish = start + h.DUR(i,1) + h.DUR(i+1,1) + h.DUR(i+2,1) - 1;
+        Tk(start:finish,1) = trial_number;
+    end 
+   
+    % fixation periods
+    if h.TYP(i,1) == fixation
+        start = h.POS(i,1);
+        finish = start + h.DUR(i,1);
+        Fk(start:finish,1) = fixation;
     end
-end
+
+    % cue periods
+    if h.TYP(i,1) == cue_hand
+        start = h.POS(i,1);
+        finish = start + h.DUR(i,1);
+        Ak(start:finish,1) = cue_hand;
+    end
+    if  h.TYP(i,1) == cue_feet  
+        start = h.POS(i,1);
+        finish = start + h.DUR(i,1);
+        Ak(start:finish,1) = cue_feet;
+    end
+    
+    % continuous feedback periods
+    if h.TYP(i,1) == cont_feedback
+        start = h.POS(i,1);
+        finish = start + h.DUR(i,1);
+        CFk(start:finish,1) = cont_feedback;
+    end
+
+    % hit/miss periods
+    if h.TYP(i,1) == hit
+        start = h.POS(i,1);
+        finish = start + h.DUR(i,1);
+        Xk(start:finish,1) = hit;
+    end
+    
+    if h.TYP(i,1) == miss
+        start = h.POS(i,1);
+        finish = start + h.DUR(i,1);
+        Xk(start:finish,1) = miss;
+    end
+
+    % extracting windows from cue to end of continuous feedback period
+    if h.TYP(i,1) == cue_hand || h.TYP(i,1) == cue_feet
+        start = h.POS(i,1);
+        finish = start + h.DUR(i,1) + h.DUR(i+1,1) - 1;
+        Wk(start:finish,1) = 1;
+    end
 
 
-vectors.Tk = Tk;
-vectors.Fk = Fk;
-vectors.Ck = Ck;
-vectors.CFk = CFk;
-vectors.Xk = Xk;
+    vectors = struct();
+    vectors.Tk = Tk;
+    vectors.Fk = Fk;
+    vectors.Ak = Ak;
+    vectors.CFk = CFk;
+    vectors.Xk = Xk;
+    vectors.Wk = Wk;
+
 
 end

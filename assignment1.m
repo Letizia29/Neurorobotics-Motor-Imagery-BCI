@@ -83,28 +83,87 @@ for i = 1:length(data)
     subj_name = data(i); % one subject
     runs_names = fieldnames(subjects.(subj_name)); % his runs
     subjects.(subj_name).s_c = [];
-    subjects.(subj_name).POS = [];
-    subjects.(subj_name).DUR = [];
-    subjects.(subj_name).TYP = [];
+    POS = [];
+    DUR = [];
+    TYP = [];
 
     for j = 1:length(runs_names)
         
         if runs_names{j}(1:7) == 'offline'  
-            subjects.(subj_name).DUR = [subjects.(subj_name).DUR; subjects.(subj_name).(runs_names{j}).h.EVENT.DUR];
-            subjects.(subj_name).TYP = [subjects.(subj_name).TYP; subjects.(subj_name).(runs_names{j}).h.EVENT.TYP];
-            subjects.(subj_name).POS = [subjects.(subj_name).POS; subjects.(subj_name).(runs_names{j}).h.EVENT.POS + length(subjects.(subj_name).s_c)];
+            DUR = [DUR; subjects.(subj_name).(runs_names{j}).h.EVENT.DUR];
+            TYP = [TYP; subjects.(subj_name).(runs_names{j}).h.EVENT.TYP];
+            POS = [POS; subjects.(subj_name).(runs_names{j}).h.EVENT.POS + length(subjects.(subj_name).s_c)];
             subjects.(subj_name).s_c = [subjects.(subj_name).s_c; subjects.(subj_name).(runs_names{j}).s];
         
         end
 
     end
+
+    subjects.(subj_name).h.POS = POS;
+    subjects.(subj_name).h.DUR = DUR;
+    subjects.(subj_name).h.TYP = TYP;
+
+    subjects.(subj_name).vectors = labelVecs(subjects.(subj_name).s_c, subjects.(subj_name).h);
     
 end
 
 %% Data processing
+% Butterworth filters
+n_mu = 4; % filter order
+n_beta = 4;
+
+% mu band
+W1 = 8; % Hz
+W2 = 12; % Hz
+Wn_mu = 2*[W1 W2]/sample_rate;
+
+% beta band
+W1 = 18; % Hz
+W2 = 22; % Hz
+Wn_beta = 2*[W1 W2]/sample_rate;
+
+% filter coefficients
+[b_mu, a_mu] = butter(n_mu, Wn_mu);
+[b_beta, a_beta] = butter(n_beta, Wn_beta);
+
+for i = 1:length(data)
+    subj_name = data(i); % one subject
+    
+    signal = subjects.(subj_name).s_c;
+    sfilt_mu = zeros(size(signal));
+    sfilt_beta = zeros(size(signal));
+    sfilt_sq_mu = zeros(size(signal));
+    sfilt_sq_beta = zeros(size(signal));
 
 
+    for channel = 1:16
+        % filter the signal
+        sfilt_mu(:, channel) = filtfilt(b_mu, a_mu, signal(:, channel));
+        sfilt_beta(:, channel) = filtfilt(b_beta, a_beta, signal(:, channel));
+    
+        % Rectifying the signal (squaring)
+        sfilt_sq_mu(:, channel) = sfilt_mu(:, channel).^2;
+        sfilt_sq_beta(:, channel) = sfilt_beta(:, channel).^2; 
+    end
+    
+    % Applying moving average (1-second window)
+    LengthWin = 1; % second
+    % as FIR filter
+    A = 1;
+    B = ones(1, LengthWin*h.SampleRate)/LengthWin/h.SampleRate;
+    % filter the signal
+    sfilt_sq_ma_mu = filter(B, A, sfilt_sq_mu);
+    sfilt_sq_ma_beta = filter(B, A, sfilt_sq_beta);
+    
+    % Logarithm transform
+    logBP_mu = log(sfilt_sq_ma_mu);
+    logBP_beta = log(sfilt_sq_ma_beta);
 
+    % save results
+    subjects.(subj_name).logBP_mu = logBP_mu;
+    subjects.(subj_name).logBP_beta = logBP_beta;
+
+end 
 
 
 
