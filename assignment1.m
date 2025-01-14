@@ -55,6 +55,13 @@ for i = 1:length(data)
                 field_name = strcat("offline",string(count_off));
                 subjects.(subj_name).(field_name).s = s;
                 subjects.(subj_name).(field_name).h = h;
+
+                % Calculate PSD and save relevant information
+                [PSD, h_PSD, f] = get_PSD(s, h);
+
+                subjects.(subj_name).(field_name).PSD = PSD;
+                subjects.(subj_name).(field_name).h_PSD = h_PSD;
+                subjects.(subj_name).(field_name).f = f;
             end
             % online run
             if run_name(21:26) == 'online'
@@ -62,6 +69,13 @@ for i = 1:length(data)
                 field_name = strcat("online",string(count_on));
                 subjects.(subj_name).(field_name).s = s;
                 subjects.(subj_name).(field_name).h = h;
+
+                % Calculate PSD and save relevant information
+                [PSD, h_PSD, f] = get_PSD(s, h);
+
+                subjects.(subj_name).(field_name).PSD = PSD;
+                subjects.(subj_name).(field_name).h_PSD = h_PSD;
+                subjects.(subj_name).(field_name).f = f;
             end
         end
     end
@@ -165,47 +179,114 @@ for i = 1:length(data)
 
 end 
 
+%% ERD/ERS Spectrogram
+
+%% Concatenate the files
+
+for i = 1:length(data)
+    subj_name = data(i);
+    runs_names = fieldnames(subjects.(subj_name));
+    subjects.(subj_name).PSD_c = [];
+    POS = [];
+    DUR = [];
+    PSD = [];
+
+    for j = 1:length(runs_names)
+
+        if contains(runs_names{j}, 'offline', 'IgnoreCase', true)
+        
+        % QUESTO NON FUNZIONA PIU' PERCHE' I FILE CONTENGONO NOMI LUNGHI 3
+        % CARATTERI
+        %if runs_names{j}(1:7) == 'offline'  
+
+            DUR = [DUR; subjects.(subj_name).(runs_names{j}).h_PSD.EVENT.DUR];
+            POS = [POS; subjects.(subj_name).(runs_names{j}).h_PSD.EVENT.POS + length(subjects.(subj_name).PSD_c)];
+
+            subjects.(subj_name).PSD_c = [subjects.(subj_name).PSD_c; subjects.(subj_name).(runs_names{j}).PSD];        
+        end
+
+    end
+
+    subjects.(subj_name).h_PSD.POS = POS;
+    subjects.(subj_name).h_PSD.DUR = DUR;
+    subjects.(subj_name).h_PSD.TYP = subjects.(subj_name).h.TYP;
+
+    subjects.(subj_name).vectors = labelVecs(subjects.(subj_name).PSD_c, subjects.(subj_name).h_PSD);
+    
+end
+
+%% Activity and Reference computation
+
+for i = 1:length(data)
+    subj_name = data(i);
+    runs_names = fieldnames(subjects.(subj_name));
+
+    subjects.(subj_name).ERD = [];
+
+    % Store the values in temp variables
+    h_PSD = subjects.(subj_name).h_PSD;
+    PSD_c = subjects.(subj_name).PSD_c;
+
+    % Get the starting position of the trials
+    startTrial = h_PSD.POS(h_PSD.TYP == 786);
+    stopTrial  = h_PSD.POS(h_PSD.TYP == 781) + h_PSD.DUR(h_PSD.TYP == 781);
+
+    % Get the number and length of trials
+    ntrials = length(startTrial);
+    trial_length = min(stopTrial - startTrial);
+
+    Activity = zeros(trial_length, size(PSD_c, 2), size(PSD_c, 3), ntrials);      % [windows x frequencies x channels x trials]
+
+    for trId = 1 : ntrials
+        cstart = startTrial(trId);
+        cstop = stopTrial(trId);
+
+        % PSD
+        Activity(:, :, :, trId) = PSD_c(cstart:min(cstop, cstart+trial_length-1), :, :);
+    end
+
+    % Extract the data referring to the fixation period
+    durFixData  = min(h_PSD.DUR(h_PSD.TYP == 786));
+
+    FixData = Activity(1:durFixData, :, :, :);
+
+    % Reference
+    Reference = repmat(mean(FixData), [size(Activity, 1) 1 1 1]);
+
+    %subjects.(subj_name).ERD = 100 * (Activity- Reference)./ Reference;
+    ERD = log(Activity ./ Reference);
+    subjects.(subj_name).ERD = ERD;
+
+
+    Ck = h_PSD.TYP(h_PSD.TYP == 771 | h_PSD.TYP == 773);
+
+    ERDavg_feet  = mean(ERD(:, :, :, Ck == 771), 4);
+    ERDavg_hands = mean(ERD(:, :, :, Ck == 773), 4);
+
+
+    % Visualization
+
+    chns = [7, 9, 11];
+
+    f = subjects.(subj_name).(runs_names{1}).f;
+
+    ERDavg_feet_rot = imrotate(ERDavg_feet(:, :, 9), 90);
+
+    % FARE QUALCOSA SU QUESTE OSCENITA'
+    figure();
+    imagesc(0:8, f, ERDavg_feet_rot);
+    colormap hot
+    colorbar
+    clim([min(ERDavg_feet_rot(:)), max(ERDavg_feet_rot(:))])
+    %xlim([0, 48])
+    %ylim([0, 50])
+    set(gca,'YDir','reverse')
+    
+end
 
 
 %% Feature selection
+
 % Identify and extract the most relevant features for each subject and on
 % subject average
-
-
-% % Concatenate the files
-% 
-% PSD = [file1.PSD; file2.PSD; file3.PSD];
-% 
-% % Concatenate the events
-% h.EVENT.DUR = [file1.h.EVENT.DUR; file2.h.EVENT.DUR; file3.h.EVENT.DUR];
-% h.EVENT.TYP = [file1.h.EVENT.TYP; file2.h.EVENT.TYP; file3.h.EVENT.TYP]; 
-% h.EVENT.POS = [file1.h.EVENT.POS; file2.h.EVENT.POS + size(file1.PSD, 1); file3.h.EVENT.POS + size(file1.PSD, 1) + size(file2.PSD, 1)];
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
