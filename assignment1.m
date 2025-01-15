@@ -423,6 +423,55 @@ end
 
 %% Feature selection
 
+% NB: SI PUO' METTERE NEL CICLO PRIMA MA PER CHIAREZZA LO FACCIO FUORI. POI
+% IN CASO BASTA UNIRLI.
+
+channels = {"Fz", "FC3", "FC1", "FCz", "FC2", "FC4", "C3", "C1", "Cz", "C2", "C4", "CP3", "CP1", "CPz", "CP2", "CP4"};
+
+for i = 1:length(data)
+    subj_name = data(i);
+    runs_names = fieldnames(subjects.(subj_name));
+
+    subjects.(subj_name).ERD = [];
+
+    % Store the values in temp variables
+    h_PSD = subjects.(subj_name).h_PSD;
+    PSD_c = subjects.(subj_name).PSD_c;
+
+    wnds_CktoCFk = subjects.(subj_name).PSD_c(subjects.(subj_name).vectors_PSD.Ak > 0 | subjects.(subj_name).vectors_PSD.CFk > 0, :, :);
+    features = reshape(wnds_CktoCFk, [size(wnds_CktoCFk, 1), size(wnds_CktoCFk, 2) * size(wnds_CktoCFk, 3)]);
+
+    idx = subjects.(subj_name).vectors_PSD.Ak + subjects.(subj_name).vectors_PSD.CFk;       % Vector containing 771, 773 or 781
+    idx = idx(idx > 0);
+    class = (idx < 781) .* idx;     % Vector containing the class for each window
+
+    for j = 2 : length(idx)
+        if class(j-1) > 0 && class(j) == 0      % If the current class is 0, then
+            class(j) = class(j-1);              % the value is updated according
+        end                                     % to the previous state.
+    end
+
+    % Fisher score computation
+    FS = abs(mean(features(class == 771, :), 1) - mean(features(class == 773, :), 1))./sqrt(std(features(class == 771, :), 1).^2 + std(features(class == 773, :), 1).^2);
+
+    figure()
+    title(['Subject ', num2str(i)])
+    imagesc(f, 1:16, flipud(imrotate(reshape(FS, [23, 16]), 90)))
+    xticks(f)
+    xtickangle(90)
+    xlabel("Hz")
+    set(gca,'YTick', 1:16)
+    set(gca,'yticklabel',(channels))
+    ylabel("Channel")
+    hold on
+
+    [row_feat, col_feat] = find(ismember(reshape(FS, [23, 16]), maxk(FS, 3)));      % Indeces of the 3 most discriminative features
+
+    plot(f(row_feat), col_feat, 'ro', 'MarkerSize', 15, 'LineWidth', 2)             % Cicle the most discriminative features
+    hold off
+end
+
+
 % Identify and extract the most relevant features for each subject and on
 % subject average
 
