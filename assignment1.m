@@ -122,6 +122,8 @@ for i = 1:length(data)
 end
 
 %% Data processing
+
+% FILTERING
 % Butterworth filters
 n_mu = 4; % filter order
 n_beta = 4;
@@ -164,11 +166,12 @@ for i = 1:length(data)
     LengthWin = 1; % second
     % as FIR filter
     A = 1;
-    B = ones(1, LengthWin*h.SampleRate)/LengthWin/h.SampleRate;
+    B = ones(1, LengthWin*sample_rate)/LengthWin/sample_rate;
     % filter the signal
     sfilt_sq_ma_mu = filter(B, A, sfilt_sq_mu);
     sfilt_sq_ma_beta = filter(B, A, sfilt_sq_beta);
     
+    % LOG BAND POWER
     % Logarithm transform
     logBP_mu = log(sfilt_sq_ma_mu);
     logBP_beta = log(sfilt_sq_ma_beta);
@@ -176,8 +179,49 @@ for i = 1:length(data)
     % save results
     subjects.(subj_name).logBP_mu = logBP_mu;
     subjects.(subj_name).logBP_beta = logBP_beta;
+    
+    % ERD/ERS ON LOGARITHMIC BAND POWER
+    % Extract trials for the 2 classes
+    % Get the starting position of the trials
+    h = subjects.(subj_name).h;
+    startTrial = h.POS(h.TYP == 786);
+    stopTrial  = h.POS(h.TYP == 781) + h.DUR(h.TYP == 781);
+
+    % Get the number and length of trials
+    ntrials = length(startTrial);
+    trial_length = min(stopTrial - startTrial);
+
+    Activity_mu = zeros(trial_length, size(sfilt_sq_ma_mu, 2), ntrials);      % [windows x frequencies x channels x trials]
+    Activity_beta = zeros(trial_length, size(sfilt_sq_ma_beta, 2), ntrials);      % [windows x frequencies x channels x trials]
+
+    for trId = 1 : ntrials
+        cstart = startTrial(trId);
+        cstop = stopTrial(trId);
+
+        % Activity periods
+        Activity_mu(:, :, trId) = sfilt_sq_ma_mu(cstart:min(cstop, cstart+trial_length-1), :);
+        Activity_beta(:, :, trId) = sfilt_sq_ma_beta(cstart:min(cstop, cstart+trial_length-1), :);
+    end
+
+    % Extract the data referring to the fixation period
+    durFixData  = min(h.DUR(h.TYP == 786));
+
+    FixData_mu = Activity_mu(1:durFixData, :, :);
+    FixData_beta = Activity_beta(1:durFixData, :, :);
+
+    % Reference
+    Reference_mu = repmat(mean(FixData_mu), [size(Activity_mu, 1) 1 1]);
+    Reference_beta = repmat(mean(FixData_beta), [size(Activity_beta, 1) 1 1]);
+
+    subjects.(subj_name).ERD_logBP_mu = 100 * (Activity_mu - Reference_mu)./ Reference_mu;
+    subjects.(subj_name).ERD_logBP_beta = 100 * (Activity_beta - Reference_beta)./ Reference_beta;
+
 
 end 
+
+% QUALCOSA DEL GENERE??
+figure()
+plot(mean(subjects.ai6_micontinuous.ERD_logBP_mu(:,9,:),3))
 
 %% ERD/ERS Spectrogram
 
@@ -189,18 +233,13 @@ for i = 1:length(data)
     subjects.(subj_name).PSD_c = [];
     POS = [];
     DUR = [];
-    PSD = [];
 
     for j = 1:length(runs_names)
 
         if contains(runs_names{j}, 'offline', 'IgnoreCase', true)
-        
-        % QUESTO NON FUNZIONA PIU' PERCHE' I FILE CONTENGONO NOMI LUNGHI 3
-        % CARATTERI
-        %if runs_names{j}(1:7) == 'offline'  
 
-            DUR = [DUR; subjects.(subj_name).(runs_names{j}).h_PSD.EVENT.DUR];
-            POS = [POS; subjects.(subj_name).(runs_names{j}).h_PSD.EVENT.POS + length(subjects.(subj_name).PSD_c)];
+            DUR = [DUR; subjects.(subj_name).(runs_names{j}).h_PSD.DUR];
+            POS = [POS; subjects.(subj_name).(runs_names{j}).h_PSD.POS + length(subjects.(subj_name).PSD_c)];
 
             subjects.(subj_name).PSD_c = [subjects.(subj_name).PSD_c; subjects.(subj_name).(runs_names{j}).PSD];        
         end
@@ -218,8 +257,34 @@ end
 %% Activity and Reference computation
 
 ax1 = figure(1); 
-% ax1.Name = '';
+ax1.Name = 'Average ERD for both feet task - channel C3'; % 7
 ax1.Position = [50,100,1600,600];
+hold off
+
+ax2 = figure(2); 
+ax2.Name = 'Average ERD for both feet task - channel Cz'; % 9
+ax2.Position = [50,100,1600,600];
+hold off
+
+ax3 = figure(3); 
+ax3.Name = 'Average ERD for both feet task - channel C4'; % 11
+ax3.Position = [50,100,1600,600];
+hold off
+
+ax4 = figure(4); 
+ax4.Name = 'Average ERD for both hands task - channel C3'; % 7
+ax4.Position = [50,100,1600,600];
+hold off
+
+ax5 = figure(5); 
+ax5.Name = 'Average ERD for both hands task - channel Cz'; % 9
+ax5.Position = [50,100,1600,600];
+hold off
+
+ax6 = figure(6); 
+ax6.Name = 'Average ERD for both hands task - channel C4'; % 11
+ax6.Position = [50,100,1600,600];
+hold off
 
 for i = 1:length(data)
     subj_name = data(i);
@@ -259,33 +324,100 @@ for i = 1:length(data)
 
     %subjects.(subj_name).ERD = 100 * (Activity- Reference)./ Reference;
     ERD = log(Activity ./ Reference);
-    subjects.(subj_name).ERD = ERD;
+    subjects.(subj_name).ERD_PSD = ERD;
 
+    % ho aggiunto la definizione di Ck dentro labelVecs, perché l'ho usato anche sopra,
+    % si può prendere da là direttamente
+    % Ck = h_PSD.TYP(h_PSD.TYP == 771 | h_PSD.TYP == 773);
 
-    Ck = h_PSD.TYP(h_PSD.TYP == 771 | h_PSD.TYP == 773);
-
-    ERDavg_feet  = mean(ERD(:, :, :, Ck == 771), 4);
-    ERDavg_hands = mean(ERD(:, :, :, Ck == 773), 4);
+    ERDavg_feet  = mean(ERD(:, :, :, subjects.(subj_name).vectors_PSD.Ck == 771), 4);
+    ERDavg_hands = mean(ERD(:, :, :, subjects.(subj_name).vectors_PSD.Ck == 773), 4);
 
 
     % Visualization
-
+    
+    % significant channels (C3, Cz, C4)
     chns = [7, 9, 11];
-
+    % frequency vector
     f = subjects.(subj_name).(runs_names{1}).f;
-
-    ERDavg_feet_rot = imrotate(ERDavg_feet(:, :, 9), 90);
+    % time vector
+    T = 0.0627; % wshift
+    t = 0:T:length(ERDavg_hands)*T;
 
     % FARE QUALCOSA SU QUESTE OSCENITA'
-    subplot(2, 4, mod(i-1, 8)+1) ;
-    imagesc(0:8, f, ERDavg_feet_rot);
+
+    set(0,'CurrentFigure',ax1)
+    subplot(2, 4, mod(i-1, 8)+1)
+    imagesc(t, f, ERDavg_feet(:, :, 7)')
     colormap hot
     colorbar
     clim([-1.1, 1.7])
-    %xlim([0, 48])
-    %ylim([0, 50])
-    set(gca,'YDir','reverse')
-    
+    name = char(subj_name);
+    title(strcat('ERD avg both feet - C3 - ',name(1:3)))
+    set(gca,'YDir','normal')
+    drawnow
+    hold off
+
+    set(0,'CurrentFigure',ax2)
+    subplot(2, 4, mod(i-1, 8)+1, 'Parent', ax2)
+    imagesc(t, f, ERDavg_feet(:, :, 9)')
+    colormap hot
+    colorbar
+    clim([-1.1, 1.7])
+    name = char(subj_name);
+    title(strcat('ERD avg both feet - Cz - ',name(1:3)))
+    set(gca,'YDir','normal')
+    drawnow
+    hold off
+
+    set(0,'CurrentFigure',ax3)
+    subplot(2, 4, mod(i-1, 8)+1, 'Parent', ax3)
+    imagesc(t, f, ERDavg_feet(:, :, 11)')
+    colormap hot
+    colorbar
+    clim([-1.1, 1.7])
+    name = char(subj_name);
+    title(strcat('ERD avg both feet - C4 - ',name(1:3)))
+    set(gca,'YDir','normal')
+    drawnow
+    hold off
+
+    set(0,'CurrentFigure',ax4)
+    subplot(2, 4, mod(i-1, 8)+1, 'Parent', ax4)
+    imagesc(t, f, ERDavg_feet(:, :, 7)')
+    colormap hot
+    colorbar
+    clim([-1.1, 1.7])
+    name = char(subj_name);
+    title(strcat('ERD avg both hands - C3 - ',name(1:3)))
+    set(gca,'YDir','normal')
+    drawnow
+    hold off
+
+    set(0,'CurrentFigure',ax5)
+    subplot(2, 4, mod(i-1, 8)+1, 'Parent', ax5)
+    imagesc(t, f, ERDavg_feet(:, :, 9)')
+    colormap hot
+    colorbar
+    clim([-1.1, 1.7])
+    name = char(subj_name);
+    title(strcat('ERD avg both hands - Cz - ',name(1:3)))
+    set(gca,'YDir','normal')
+    drawnow
+    hold off
+
+    set(0,'CurrentFigure',ax6)
+    subplot(2, 4, mod(i-1, 8)+1, 'Parent', ax6)
+    imagesc(t, f, ERDavg_feet(:, :, 11)')
+    colormap hot
+    colorbar
+    clim([-1.1, 1.7])
+    name = char(subj_name);
+    title(strcat('ERD avg both hands - C4 - ',name(1:3)))
+    set(gca,'YDir','normal')
+    drawnow
+    hold off
+
 end
 
 

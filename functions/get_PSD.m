@@ -29,7 +29,8 @@ POS = proc_pos2win(h.EVENT.POS, wshift*h.SampleRate, winconv, wlength*h.SampleRa
 DUR = diff(POS) - 1;
 DUR(length(POS)) = size(PSD, 1) - POS(length(POS)) - 1;
 
-h_PSD.EVENT.POS = POS;
-h_PSD.EVENT.DUR = DUR;
+h_PSD.POS = POS;
+h_PSD.DUR = DUR;
+h_PSD.TYP = h.EVENT.TYP;
 
 end

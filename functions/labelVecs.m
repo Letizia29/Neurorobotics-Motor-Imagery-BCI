@@ -10,6 +10,7 @@ function vectors = labelVecs(s, h)
 % Create CFk [continuous feedback periods] (0 or event value)
 % Create Xk [hit/miss periods] (0 or event value)
 % Create Wk [windows] for PSD
+% Create Ck [trial type] (771/773)
 
 % events codes
 trial_start = 1;
@@ -19,8 +20,6 @@ cue_feet = 771;
 cont_feedback = 781;
 hit = 897;
 miss = 898;
-
-
 
 % Initialize the data structures to store the information.
 Tk = zeros(size(s, 1), 1); % Trial vector
@@ -96,6 +95,6 @@ for i = 1:length(h.TYP)
     vectors.CFk = CFk;
     vectors.Xk = Xk;
     vectors.Wk = Wk;
-
+    vectors.Ck = h.TYP(h.TYP == 771 | h.TYP == 773);
 
 end
