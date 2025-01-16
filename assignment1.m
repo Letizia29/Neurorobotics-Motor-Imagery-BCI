@@ -20,8 +20,9 @@ addpath(fullfile(pwd, "Toolboxes\biosig\biosig\t250_ArtifactPreProcessingQuality
 % Loading Laplacian Mask
 load('laplacian16.mat');
 
-%% Data loading
-% for each subject, loading of each run and application of Laplacian filter
+%% Data loading and PSD computation
+% for each subject, loading of each run, application of Laplacian filter
+% and PSD computation, with consequent events re-computing
 
 addpath(genpath(fullfile(pwd, "Data/")))
 m = "_micontinuous";
@@ -92,7 +93,9 @@ end
 
 sample_rate = 512; % Hz
 
+
 %% Concatenate signals and events' types, positions, durations for each subject
+
 for i = 1:length(data)
     subj_name = data(i); % one subject
     runs_names = fieldnames(subjects.(subj_name)); % his runs
@@ -120,6 +123,7 @@ for i = 1:length(data)
     subjects.(subj_name).vectors = labelVecs(subjects.(subj_name).s_c, subjects.(subj_name).h);
     
 end
+
 
 %% Data processing
 
@@ -215,13 +219,335 @@ for i = 1:length(data)
 
     subjects.(subj_name).ERD_logBP_mu = 100 * (Activity_mu - Reference_mu)./ Reference_mu;
     subjects.(subj_name).ERD_logBP_beta = 100 * (Activity_beta - Reference_beta)./ Reference_beta;
-
+    
 
 end 
 
-% QUALCOSA DEL GENERE??
+
+%% Plot ERD/ERS on logBP
+ax1 = figure(1); 
+ax1.Name = 'Average ERD logBP \mu - channel C3'; % 7
+ax1.Position = [50,100,1600,600];
+hold off
+
+ax2 = figure(2); 
+ax2.Name = 'Average ERD logBP \mu - channel Cz'; % 9
+ax2.Position = [50,100,1600,600];
+hold off
+
+ax3 = figure(3); 
+ax3.Name = 'Average ERD logBP \mu - channel C4'; % 11
+ax3.Position = [50,100,1600,600];
+hold off
+
+ax4 = figure(4); 
+ax4.Name = 'Average ERD logBP \beta - channel C3'; % 7
+ax4.Position = [50,100,1600,600];
+hold off
+
+ax5 = figure(5); 
+ax5.Name = 'Average ERD logBP \beta - channel Cz'; % 9
+ax5.Position = [50,100,1600,600];
+hold off
+
+ax6 = figure(6); 
+ax6.Name = 'Average ERD logBP \beta - channel C4'; % 11
+ax6.Position = [50,100,1600,600];
+hold off
+
+for i = 1:length(data)
+    subj_name = data(i);
+
+    ERDmu_feet = subjects.(subj_name).ERD_logBP_mu(:, :, subjects.(subj_name).vectors.Ck == 771);
+    ERDmu_hands = subjects.(subj_name).ERD_logBP_mu(:, :, subjects.(subj_name).vectors.Ck == 773);
+    ERDbeta_feet = subjects.(subj_name).ERD_logBP_beta(:, :, subjects.(subj_name).vectors.Ck == 771);
+    ERDbeta_hands = subjects.(subj_name).ERD_logBP_beta(:, :, subjects.(subj_name).vectors.Ck == 773);
+
+    % average ERD/ERS
+    ERD_logBP_mu_avg_feet  = mean(ERDmu_feet, 3);
+    ERD_logBP_mu_avg_hands  = mean(ERDmu_hands, 3);
+
+    ERD_logBP_beta_avg_feet  = mean(ERDbeta_feet, 3);
+    ERD_logBP_beta_avg_hands  = mean(ERDbeta_hands, 3);
+
+    % standard deviation
+    ERD_logBP_mu_SE_feet = std(ERDmu_feet, 0, 3)./sqrt(length(ERDmu_feet(1,1,:)));
+    ERD_logBP_mu_SE_hands = std(ERDmu_hands, 0, 3)./sqrt(length(ERDmu_hands(1,1,:)));
+
+    ERD_logBP_beta_SE_feet = std(ERDbeta_feet, 0, 3)./sqrt(length(ERDbeta_feet(1,1,:)));
+    ERD_logBP_beta_SE_hands = std(ERDbeta_hands, 0, 3)./sqrt(length(ERDbeta_hands(1,1,:)));
+
+
+    % Visualization
+    
+    % significant channels (C3, Cz, C4)
+    chns = [7, 9, 11];
+    % time vector
+    T = 0.0627; % wshift
+    t = 0:T:(length(ERD_logBP_mu_avg_feet)-1)*T;
+
+    set(0,'CurrentFigure',ax1)
+    subplot(2, 4, mod(i-1, 8)+1)
+    plot(t, ERD_logBP_mu_avg_feet(:,7), 'g'), hold on
+    plot(t, ERD_logBP_mu_avg_hands(:,7), 'r')
+    % SE
+    plot(t, ERD_logBP_mu_avg_hands(:,7) - ERD_logBP_mu_SE_hands(:,7), ':r')
+    plot(t, ERD_logBP_mu_avg_hands(:,7) + ERD_logBP_mu_SE_hands(:,7), ':r')
+    plot(t, ERD_logBP_mu_avg_feet(:,7) - ERD_logBP_mu_SE_feet(:,7), ':g')
+    plot(t, ERD_logBP_mu_avg_feet(:,7) + ERD_logBP_mu_SE_feet(:,7), ':g')
+    name = char(subj_name);
+    title(strcat('ERD avg logBP \mu - C3 - ',name(1:3)))
+    legend('both feet', 'both hands')
+    axis tight
+    drawnow
+    hold off
+
+    set(0,'CurrentFigure',ax2)
+    subplot(2, 4, mod(i-1, 8)+1)
+    plot(t, ERD_logBP_mu_avg_feet(:,9), 'g'), hold on
+    plot(t, ERD_logBP_mu_avg_hands(:,9), 'r')
+    % SE
+    plot(t, ERD_logBP_mu_avg_hands(:,9) - ERD_logBP_mu_SE_hands(:,9), ':r')
+    plot(t, ERD_logBP_mu_avg_hands(:,9) + ERD_logBP_mu_SE_hands(:,9), ':r')
+    plot(t, ERD_logBP_mu_avg_feet(:,9) - ERD_logBP_mu_SE_feet(:,9), ':g')
+    plot(t, ERD_logBP_mu_avg_feet(:,9) + ERD_logBP_mu_SE_feet(:,9), ':g')
+    name = char(subj_name);
+    title(strcat('ERD avg logBP \mu - Cz - ',name(1:3)))
+    legend('both feet', 'both hands')
+    axis tight
+    drawnow
+    hold off
+
+    set(0,'CurrentFigure',ax3)
+    subplot(2, 4, mod(i-1, 8)+1)
+    plot(t, ERD_logBP_mu_avg_feet(:,11), 'g'), hold on
+    plot(t, ERD_logBP_mu_avg_hands(:,11), 'r')
+    % SE
+    plot(t, ERD_logBP_mu_avg_hands(:,11) - ERD_logBP_mu_SE_hands(:,11), ':r')
+    plot(t, ERD_logBP_mu_avg_hands(:,11) + ERD_logBP_mu_SE_hands(:,11), ':r')
+    plot(t, ERD_logBP_mu_avg_feet(:,11) - ERD_logBP_mu_SE_feet(:,11), ':g')
+    plot(t, ERD_logBP_mu_avg_feet(:,11) + ERD_logBP_mu_SE_feet(:,11), ':g')
+    name = char(subj_name);
+    title(strcat('ERD avg logBP \mu - C4 - ',name(1:3)))
+    legend('both feet', 'both hands')
+    axis tight
+    drawnow
+    hold off
+
+    set(0,'CurrentFigure',ax4)
+    subplot(2, 4, mod(i-1, 8)+1)
+    plot(t, ERD_logBP_beta_avg_feet(:,7), 'g'), hold on
+    plot(t, ERD_logBP_beta_avg_hands(:,7), 'r')
+    % SE
+    plot(t, ERD_logBP_beta_avg_hands(:,7) - ERD_logBP_beta_SE_hands(:,7), ':r')
+    plot(t, ERD_logBP_beta_avg_hands(:,7) + ERD_logBP_beta_SE_hands(:,7), ':r')
+    plot(t, ERD_logBP_beta_avg_feet(:,7) - ERD_logBP_beta_SE_feet(:,7), ':g')
+    plot(t, ERD_logBP_beta_avg_feet(:,7) + ERD_logBP_beta_SE_feet(:,7), ':g')
+    name = char(subj_name);
+    title(strcat('ERD avg logBP \beta - C3 - ',name(1:3)))
+    legend('both feet', 'both hands')
+    axis tight
+    drawnow
+    hold off
+
+    set(0,'CurrentFigure',ax5)
+    subplot(2, 4, mod(i-1, 8)+1)
+    plot(t, ERD_logBP_beta_avg_feet(:,9), 'g'), hold on
+    plot(t, ERD_logBP_beta_avg_hands(:,9), 'r')
+    % SE
+    plot(t, ERD_logBP_beta_avg_hands(:,9) - ERD_logBP_beta_SE_hands(:,9), ':r')
+    plot(t, ERD_logBP_beta_avg_hands(:,9) + ERD_logBP_beta_SE_hands(:,9), ':r')
+    plot(t, ERD_logBP_beta_avg_feet(:,9) - ERD_logBP_beta_SE_feet(:,9), ':g')
+    plot(t, ERD_logBP_beta_avg_feet(:,9) + ERD_logBP_beta_SE_feet(:,9), ':g')
+    name = char(subj_name);
+    title(strcat('ERD avg logBP \beta - Cz - ',name(1:3)))
+    legend('both feet', 'both hands')
+    axis tight
+    drawnow
+    hold off
+
+    set(0,'CurrentFigure',ax6)
+    subplot(2, 4, mod(i-1, 8)+1)
+    plot(t, ERD_logBP_beta_avg_feet(:,11), 'g'), hold on
+    plot(t, ERD_logBP_beta_avg_hands(:,11), 'r')
+    % SE
+    plot(t, ERD_logBP_beta_avg_hands(:,11) - ERD_logBP_beta_SE_hands(:,11), ':r')
+    plot(t, ERD_logBP_beta_avg_hands(:,11) + ERD_logBP_beta_SE_hands(:,11), ':r')
+    plot(t, ERD_logBP_beta_avg_feet(:,11) - ERD_logBP_beta_SE_feet(:,11), ':g')
+    plot(t, ERD_logBP_beta_avg_feet(:,11) + ERD_logBP_beta_SE_feet(:,11), ':g')
+    name = char(subj_name);
+    title(strcat('ERD avg logBP \beta - C4 - ',name(1:3)))
+    legend('both feet', 'both hands')
+    axis tight
+    drawnow
+    hold off
+
+    % save average ERD in the structure
+    subjects.(subj_name).ERD_logBP_mu_avg_feet = ERD_logBP_mu_avg_feet;
+    subjects.(subj_name).ERD_logBP_mu_avg_hands = ERD_logBP_mu_avg_hands;
+    subjects.(subj_name).ERD_logBP_beta_avg_feet = ERD_logBP_beta_avg_feet;
+    subjects.(subj_name).ERD_logBP_beta_avg_hands = ERD_logBP_beta_avg_hands;
+
+end
+
+
+%% GRAND AVERAGE 
+% for ERD on logarithmic band power (except sub 7)
+
+% adjust different lengths
+minLen_ERDmu_feet = inf;
+minLen_ERDmu_hands = inf;
+minLen_ERDbeta_feet = inf;
+minLen_ERDbeta_hands = inf;
+
+for i = 1:length(data)
+    subj_name = data(i);
+    if length(subjects.(subj_name).ERD_logBP_mu_avg_feet) <  minLen_ERDmu_feet
+        minLen_ERDmu_feet = length(subjects.(subj_name).ERD_logBP_mu_avg_feet);
+    end
+    if length(subjects.(subj_name).ERD_logBP_mu_avg_hands) <  minLen_ERDmu_hands
+        minLen_ERDmu_hands = length(subjects.(subj_name).ERD_logBP_mu_avg_hands);
+    end
+    if length(subjects.(subj_name).ERD_logBP_beta_avg_feet) <  minLen_ERDbeta_feet
+        minLen_ERDbeta_feet = length(subjects.(subj_name).ERD_logBP_mu_avg_feet);
+    end
+    if length(subjects.(subj_name).ERD_logBP_beta_avg_hands) <  minLen_ERDbeta_hands
+        minLen_ERDbeta_hands = length(subjects.(subj_name).ERD_logBP_beta_avg_hands);
+    end
+end
+
+% save data from all subjects
+ERDmu_feet_tot = zeros(minLen_ERDmu_feet, 16, length(data)-1);
+ERDmu_hands_tot = zeros(minLen_ERDmu_hands, 16, length(data)-1);
+ERDbeta_feet_tot = zeros(minLen_ERDbeta_feet, 16, length(data)-1);
+ERDbeta_hands_tot = zeros(minLen_ERDbeta_hands, 16, length(data)-1);
+
+for i = 1:length(data)
+    subj_name = data(i);
+    if i < 7 % remove subject 7
+        ERDmu_feet_tot(:, :, i) = subjects.(subj_name).ERD_logBP_mu_avg_feet(1:minLen_ERDmu_feet,:);
+        ERDmu_hands_tot(:, :, i) = subjects.(subj_name).ERD_logBP_mu_avg_hands(1:minLen_ERDmu_hands,:);
+        ERDbeta_feet_tot(:, :, i) = subjects.(subj_name).ERD_logBP_beta_avg_feet(1:minLen_ERDbeta_feet,:);
+        ERDbeta_hands_tot(:, :, i) = subjects.(subj_name).ERD_logBP_beta_avg_hands(1:minLen_ERDbeta_hands,:);
+    end
+    if i == 8
+        ERDmu_feet_tot(:, :, i-1) = subjects.(subj_name).ERD_logBP_mu_avg_feet(1:minLen_ERDmu_feet,:);
+        ERDmu_hands_tot(:, :, i-1) = subjects.(subj_name).ERD_logBP_mu_avg_hands(1:minLen_ERDmu_hands,:);
+        ERDbeta_feet_tot(:, :, i-1) = subjects.(subj_name).ERD_logBP_beta_avg_feet(1:minLen_ERDbeta_feet,:);
+        ERDbeta_hands_tot(:, :, i-1) = subjects.(subj_name).ERD_logBP_beta_avg_hands(1:minLen_ERDbeta_hands,:);
+    end
+end
+
+% compute Grand Average
+ERDmu_feet_GA = mean(ERDmu_feet_tot, 3);
+ERDmu_hands_GA = mean(ERDmu_hands_tot, 3);
+ERDbeta_feet_GA = mean(ERDbeta_feet_tot, 3);
+ERDbeta_hands_GA = mean(ERDbeta_hands_tot, 3);
+
+% GA temporal plots
+% DA AGGIUNGERE SE 
 figure()
-plot(mean(subjects.ai6_micontinuous.ERD_logBP_mu(:,9,:),3))
+subplot(231), hold on
+plot(ERDmu_feet_GA(:,7), 'g')
+plot(ERDmu_hands_GA(:,7), 'r')
+title('Grand Average ERD logBP \mu C3')
+legend('both feet', 'both hands')
+axis tight
+hold off
+
+subplot(232), hold on
+plot(ERDmu_feet_GA(:,9), 'g')
+plot(ERDmu_hands_GA(:,9), 'r')
+title('Grand Average ERD logBP \mu Cz')
+legend('both feet', 'both hands')
+axis tight
+hold off
+
+subplot(233), hold on
+plot(ERDmu_feet_GA(:,11), 'g')
+plot(ERDmu_hands_GA(:,11), 'r')
+title('Grand Average ERD logBP \mu C4')
+legend('both feet', 'both hands')
+axis tight
+hold off
+
+subplot(234), hold on
+plot(ERDbeta_feet_GA(:,7), 'g')
+plot(ERDbeta_hands_GA(:,7), 'r')
+title('Grand Average ERD logBP \beta C3')
+legend('both feet', 'both hands')
+axis tight
+hold off
+
+subplot(235), hold on
+plot(ERDbeta_feet_GA(:,9), 'g')
+plot(ERDbeta_hands_GA(:,9), 'r')
+title('Grand Average ERD logBP \beta Cz')
+legend('both feet', 'both hands')
+axis tight
+hold off
+
+subplot(236), hold on
+plot(ERDbeta_feet_GA(:,11), 'g')
+plot(ERDbeta_hands_GA(:,11), 'r')
+title('Grand Average ERD logBP \beta C4')
+legend('both feet', 'both hands')
+axis tight
+hold off
+
+
+% Topographic plots
+load('chanlocs16.mat');
+len = min(h.DUR(h.TYP == 786)); % presa dall'ultima h salvata giusto per fare un prova
+
+% mu band
+ERD_Ref_773 = mean(ERDmu_hands_GA(1:len, :), 1);
+ERD_Act_773 = mean(ERDmu_hands_GA(len+1:end, :), 1);
+ERD_Ref_771 = mean(ERDmu_feet_GA(1:len, :), 1);
+ERD_Act_771 = mean(ERDmu_feet_GA(len+1:end, :), 1);
+
+figure();
+subplot(221)
+topoplot(squeeze(ERD_Ref_773), chanlocs16);
+colorbar
+clim([-50, 50])
+subplot(222)
+topoplot(squeeze(ERD_Act_773), chanlocs16);
+colorbar
+clim([-50, 50])
+subplot(223)
+topoplot(squeeze(ERD_Ref_771), chanlocs16);
+colorbar
+clim([-50, 50])
+subplot(224)
+topoplot(squeeze(ERD_Act_771), chanlocs16);
+colorbar
+clim([-50, 50])
+
+% beta band
+ERD_Ref_773 = mean(ERDbeta_hands_GA(1:len, :), 1);
+ERD_Act_773 = mean(ERDbeta_hands_GA(len+1:end, :), 1);
+ERD_Ref_771 = mean(ERDbeta_feet_GA(1:len, :), 1);
+ERD_Act_771 = mean(ERDbeta_feet_GA(len+1:end, :), 1);
+
+figure();
+subplot(221)
+topoplot(squeeze(ERD_Ref_773), chanlocs16);
+colorbar
+clim([-20, 50])
+subplot(222)
+topoplot(squeeze(ERD_Act_773), chanlocs16);
+colorbar
+clim([-20, 50])
+subplot(223)
+topoplot(squeeze(ERD_Ref_771), chanlocs16);
+colorbar
+clim([-20, 50])
+subplot(224)
+topoplot(squeeze(ERD_Act_771), chanlocs16);
+colorbar
+clim([-20, 50])
+
 
 %% ERD/ERS Spectrogram
 
@@ -432,13 +758,11 @@ for i = 1:length(data)
     subj_name = data(i);
     runs_names = fieldnames(subjects.(subj_name));
 
-    subjects.(subj_name).ERD = [];
-
     % Store the values in temp variables
     h_PSD = subjects.(subj_name).h_PSD;
     PSD_c = subjects.(subj_name).PSD_c;
 
-    wnds_CktoCFk = subjects.(subj_name).PSD_c(subjects.(subj_name).vectors_PSD.Ak > 0 | subjects.(subj_name).vectors_PSD.CFk > 0, :, :);
+    wnds_CktoCFk = log(subjects.(subj_name).PSD_c(subjects.(subj_name).vectors_PSD.Ak > 0 | subjects.(subj_name).vectors_PSD.CFk > 0, :, :));
     features = reshape(wnds_CktoCFk, [size(wnds_CktoCFk, 1), size(wnds_CktoCFk, 2) * size(wnds_CktoCFk, 3)]);
 
     idx = subjects.(subj_name).vectors_PSD.Ak + subjects.(subj_name).vectors_PSD.CFk;       % Vector containing 771, 773 or 781
