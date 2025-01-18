@@ -444,12 +444,21 @@ ERDmu_hands_GA = mean(ERDmu_hands_tot, 3);
 ERDbeta_feet_GA = mean(ERDbeta_feet_tot, 3);
 ERDbeta_hands_GA = mean(ERDbeta_hands_tot, 3);
 
+ERDmu_feet_SE = std(ERDmu_feet_tot, 0, 3)./sqrt(length(ERDmu_feet_tot(:,1,1)));
+ERDmu_hands_SE = std(ERDmu_hands_tot, 0, 3)./sqrt(length(ERDmu_hands_tot(:,1,1)));
+ERDbeta_feet_SE = std(ERDbeta_feet_tot, 0, 3)./sqrt(length(ERDbeta_feet_tot(:,1,1)));
+ERDbeta_hands_SE = std(ERDbeta_hands_tot, 0, 3)./sqrt(length(ERDbeta_hands_tot(:,1,1)));
+
 % GA temporal plots
-% DA AGGIUNGERE SE 
-figure()
+% StandardError MOLTO STRANO
+figure(7)
 subplot(231), hold on
 plot(ERDmu_feet_GA(:,7), 'g')
+plot(ERDmu_feet_GA(:,7) - ERDmu_feet_SE(:,7), ':g')
+plot(ERDmu_feet_GA(:,7) + ERDmu_feet_SE(:,7), ':g')
 plot(ERDmu_hands_GA(:,7), 'r')
+plot(ERDmu_hands_GA(:,7) - ERDmu_hands_SE(:,7), ':r')
+plot(ERDmu_hands_GA(:,7) + ERDmu_hands_SE(:,7), ':r')
 title('Grand Average ERD logBP \mu C3')
 legend('both feet', 'both hands')
 axis tight
@@ -457,7 +466,11 @@ hold off
 
 subplot(232), hold on
 plot(ERDmu_feet_GA(:,9), 'g')
+plot(ERDmu_feet_GA(:,9) - ERDmu_feet_SE(:,9), ':g')
+plot(ERDmu_feet_GA(:,9) + ERDmu_feet_SE(:,9), ':g')
 plot(ERDmu_hands_GA(:,9), 'r')
+plot(ERDmu_hands_GA(:,9) - ERDmu_hands_SE(:,9), ':r')
+plot(ERDmu_hands_GA(:,9) + ERDmu_hands_SE(:,9), ':r')
 title('Grand Average ERD logBP \mu Cz')
 legend('both feet', 'both hands')
 axis tight
@@ -465,7 +478,11 @@ hold off
 
 subplot(233), hold on
 plot(ERDmu_feet_GA(:,11), 'g')
+plot(ERDmu_feet_GA(:,11) - ERDmu_feet_SE(:,11), ':g')
+plot(ERDmu_feet_GA(:,11) + ERDmu_feet_SE(:,11), ':g')
 plot(ERDmu_hands_GA(:,11), 'r')
+plot(ERDmu_hands_GA(:,11) - ERDmu_hands_SE(:,11), ':r')
+plot(ERDmu_hands_GA(:,11) + ERDmu_hands_SE(:,11), ':r')
 title('Grand Average ERD logBP \mu C4')
 legend('both feet', 'both hands')
 axis tight
@@ -473,7 +490,11 @@ hold off
 
 subplot(234), hold on
 plot(ERDbeta_feet_GA(:,7), 'g')
+plot(ERDbeta_feet_GA(:,7) - ERDbeta_feet_SE(:,7), ':g')
+plot(ERDbeta_feet_GA(:,7) + ERDbeta_feet_SE(:,7), ':g')
 plot(ERDbeta_hands_GA(:,7), 'r')
+plot(ERDbeta_hands_GA(:,7) - ERDbeta_hands_SE(:,7), ':r')
+plot(ERDbeta_hands_GA(:,7) + ERDbeta_hands_SE(:,7), ':r')
 title('Grand Average ERD logBP \beta C3')
 legend('both feet', 'both hands')
 axis tight
@@ -481,7 +502,11 @@ hold off
 
 subplot(235), hold on
 plot(ERDbeta_feet_GA(:,9), 'g')
+plot(ERDbeta_feet_GA(:,9) - ERDbeta_feet_SE(:,9), ':g')
+plot(ERDbeta_feet_GA(:,9) + ERDbeta_feet_SE(:,9), ':g')
 plot(ERDbeta_hands_GA(:,9), 'r')
+plot(ERDbeta_hands_GA(:,9) - ERDbeta_hands_SE(:,9), ':r')
+plot(ERDbeta_hands_GA(:,9) + ERDbeta_hands_SE(:,9), ':r')
 title('Grand Average ERD logBP \beta Cz')
 legend('both feet', 'both hands')
 axis tight
@@ -489,7 +514,11 @@ hold off
 
 subplot(236), hold on
 plot(ERDbeta_feet_GA(:,11), 'g')
+plot(ERDbeta_feet_GA(:,11) - ERDbeta_feet_SE(:,11), ':g')
+plot(ERDbeta_feet_GA(:,11) + ERDbeta_feet_SE(:,11), ':g')
 plot(ERDbeta_hands_GA(:,11), 'r')
+plot(ERDbeta_hands_GA(:,11) - ERDbeta_hands_SE(:,11), ':r')
+plot(ERDbeta_hands_GA(:,11) + ERDbeta_hands_SE(:,11), ':r')
 title('Grand Average ERD logBP \beta C4')
 legend('both feet', 'both hands')
 axis tight
@@ -506,23 +535,27 @@ ERD_Act_773 = mean(ERDmu_hands_GA(len+1:end, :), 1);
 ERD_Ref_771 = mean(ERDmu_feet_GA(1:len, :), 1);
 ERD_Act_771 = mean(ERDmu_feet_GA(len+1:end, :), 1);
 
-figure();
+figure(8);
 subplot(221)
 topoplot(squeeze(ERD_Ref_773), chanlocs16);
+title('Reference - \mu band - both hands')
 colorbar
-clim([-50, 50])
+clim([-20, 50])
 subplot(222)
 topoplot(squeeze(ERD_Act_773), chanlocs16);
+title('Activity - \mu band - both hands')
 colorbar
-clim([-50, 50])
+clim([-20, 50])
 subplot(223)
 topoplot(squeeze(ERD_Ref_771), chanlocs16);
+title('Reference - \mu band - both feet')
 colorbar
-clim([-50, 50])
+clim([-20, 50])
 subplot(224)
 topoplot(squeeze(ERD_Act_771), chanlocs16);
+title('Activity - \mu band - both hands')
 colorbar
-clim([-50, 50])
+clim([-20, 50])
 
 % beta band
 ERD_Ref_773 = mean(ERDbeta_hands_GA(1:len, :), 1);
@@ -530,21 +563,25 @@ ERD_Act_773 = mean(ERDbeta_hands_GA(len+1:end, :), 1);
 ERD_Ref_771 = mean(ERDbeta_feet_GA(1:len, :), 1);
 ERD_Act_771 = mean(ERDbeta_feet_GA(len+1:end, :), 1);
 
-figure();
+figure(9);
 subplot(221)
 topoplot(squeeze(ERD_Ref_773), chanlocs16);
+title('Reference - \beta band - both hands')
 colorbar
 clim([-20, 50])
 subplot(222)
 topoplot(squeeze(ERD_Act_773), chanlocs16);
+title('Activity - \beta band - both hands')
 colorbar
 clim([-20, 50])
 subplot(223)
 topoplot(squeeze(ERD_Ref_771), chanlocs16);
+title('Reference - \beta band - both feet')
 colorbar
 clim([-20, 50])
 subplot(224)
 topoplot(squeeze(ERD_Act_771), chanlocs16);
+title('Activity - \beta band - both feet')
 colorbar
 clim([-20, 50])
 
@@ -582,32 +619,32 @@ end
 
 %% Activity and Reference computation
 
-ax1 = figure(1); 
+ax1 = figure(10); 
 ax1.Name = 'Average ERD for both feet task - channel C3'; % 7
 ax1.Position = [50,100,1600,600];
 hold off
 
-ax2 = figure(2); 
+ax2 = figure(11); 
 ax2.Name = 'Average ERD for both feet task - channel Cz'; % 9
 ax2.Position = [50,100,1600,600];
 hold off
 
-ax3 = figure(3); 
+ax3 = figure(12); 
 ax3.Name = 'Average ERD for both feet task - channel C4'; % 11
 ax3.Position = [50,100,1600,600];
 hold off
 
-ax4 = figure(4); 
+ax4 = figure(13); 
 ax4.Name = 'Average ERD for both hands task - channel C3'; % 7
 ax4.Position = [50,100,1600,600];
 hold off
 
-ax5 = figure(5); 
+ax5 = figure(14); 
 ax5.Name = 'Average ERD for both hands task - channel Cz'; % 9
 ax5.Position = [50,100,1600,600];
 hold off
 
-ax6 = figure(6); 
+ax6 = figure(15); 
 ax6.Name = 'Average ERD for both hands task - channel C4'; % 11
 ax6.Position = [50,100,1600,600];
 hold off
@@ -754,6 +791,8 @@ end
 
 channels = {"Fz", "FC3", "FC1", "FCz", "FC2", "FC4", "C3", "C1", "Cz", "C2", "C4", "CP3", "CP1", "CPz", "CP2", "CP4"};
 
+ax0 = figure(16);
+
 for i = 1:length(data)
     subj_name = data(i);
     runs_names = fieldnames(subjects.(subj_name));
@@ -778,8 +817,9 @@ for i = 1:length(data)
     % Fisher score computation
     FS = abs(mean(features(class == 771, :), 1) - mean(features(class == 773, :), 1))./sqrt(std(features(class == 771, :), 1).^2 + std(features(class == 773, :), 1).^2);
 
-    figure()
-    title(['Subject ', num2str(i)])
+    set(0,'CurrentFigure',ax0)
+    subplot(2, 4, mod(i-1, 8)+1, 'Parent', ax0)
+    title(strcat('Subject ', num2str(i)))
     imagesc(f, 1:16, flipud(imrotate(reshape(FS, [23, 16]), 90)))
     xticks(f)
     xtickangle(90)
@@ -791,7 +831,7 @@ for i = 1:length(data)
 
     [row_feat, col_feat] = find(ismember(reshape(FS, [23, 16]), maxk(FS, 3)));      % Indeces of the 3 most discriminative features
 
-    plot(f(row_feat), col_feat, 'ro', 'MarkerSize', 15, 'LineWidth', 2)             % Cicle the most discriminative features
+    plot(f(row_feat), col_feat, 'ro', 'MarkerSize', 15, 'LineWidth', 2)             % Circle the most discriminative features
     hold off
 end
 
