@@ -83,6 +83,42 @@ for i = 1:length(data)
     end
 end
 
+%% Remove trials related to artifacts
+
+pos_artifacts_run1 = subjects.ai7_micontinuous.offline1.h.EVENT.POS([57, 65]);
+pos_artifacts_run3 = subjects.ai7_micontinuous.offline3.h.EVENT.POS([37, 41]);
+
+num_artifacts_samples_run1 = pos_artifacts_run1(2) - pos_artifacts_run1(1);
+num_artifacts_samples_run3 = pos_artifacts_run3(2) - pos_artifacts_run3(1);
+
+pos_artifacts_run1(2) = pos_artifacts_run1(2) - 1;
+pos_artifacts_run3(2) = pos_artifacts_run3(2) - 1;
+
+subjects.ai7_micontinuous.offline1.s(pos_artifacts_run1(1) : pos_artifacts_run1(2), :) = [];
+subjects.ai7_micontinuous.offline3.s(pos_artifacts_run3(1) : pos_artifacts_run3(2), :) = [];
+
+subjects.ai7_micontinuous.offline1.h.EVENT.DUR(57:64) = [];
+subjects.ai7_micontinuous.offline1.h.EVENT.TYP(57:64) = [];
+subjects.ai7_micontinuous.offline1.h.EVENT.POS(65:end) = subjects.ai7_micontinuous.offline1.h.EVENT.POS(65:end) - num_artifacts_samples_run1;
+subjects.ai7_micontinuous.offline1.h.EVENT.POS(57:64) = [];
+
+subjects.ai7_micontinuous.offline3.h.EVENT.DUR(37:40) = [];
+subjects.ai7_micontinuous.offline3.h.EVENT.TYP(37:40) = [];
+subjects.ai7_micontinuous.offline3.h.EVENT.POS(41:end) = subjects.ai7_micontinuous.offline3.h.EVENT.POS(41:end) - num_artifacts_samples_run3;
+subjects.ai7_micontinuous.offline3.h.EVENT.POS(37:40) = [];
+
+%% Recompute PSD for subj 7
+
+[PSD1, h_PSD1, f1] = get_PSD(subjects.ai7_micontinuous.offline1.s, subjects.ai7_micontinuous.offline1.h);
+[PSD3, h_PSD3, f3] = get_PSD(subjects.ai7_micontinuous.offline3.s, subjects.ai7_micontinuous.offline3.h);
+
+subjects.ai7_micontinuous.offline1.PSD = PSD1;
+subjects.ai7_micontinuous.offline1.h_PSD = h_PSD1;
+subjects.ai7_micontinuous.offline1.f = f1;
+
+subjects.ai7_micontinuous.offline3.PSD = PSD3;
+subjects.ai7_micontinuous.offline3.h_PSD = h_PSD3;
+subjects.ai7_micontinuous.offline3.f = f3;
 
 %% Process the data through log band power computation and ERD/ERS
 
@@ -139,8 +175,8 @@ W2 = 12; % Hz
 Wn_mu = 2*[W1 W2]/sample_rate;
 
 % beta band
-W1 = 18; % Hz
-W2 = 22; % Hz
+W1 = 16; % Hz
+W2 = 24; % Hz
 Wn_beta = 2*[W1 W2]/sample_rate;
 
 % filter coefficients
@@ -453,19 +489,33 @@ ERDmu_hands_tot   = zeros(minLen_ERDmu_hands, 16, length(data)-1);
 ERDbeta_feet_tot  = zeros(minLen_ERDbeta_feet, 16, length(data)-1);
 ERDbeta_hands_tot = zeros(minLen_ERDbeta_hands, 16, length(data)-1);
 
-for i = 1:length(data)
-    subj_name = data(i);
-    if i < 7 % remove subject 7
+remove_sub7 = 0;
+
+if remove_sub7 == 1
+
+    for i = 1:length(data)
+        subj_name = data(i);
+        if i < 7 % remove subject 7
+            ERDmu_feet_tot(:, :, i)    = subjects.(subj_name).ERD_logBP_mu_avg_feet(1:minLen_ERDmu_feet,:);
+            ERDmu_hands_tot(:, :, i)   = subjects.(subj_name).ERD_logBP_mu_avg_hands(1:minLen_ERDmu_hands,:);
+            ERDbeta_feet_tot(:, :, i)  = subjects.(subj_name).ERD_logBP_beta_avg_feet(1:minLen_ERDbeta_feet,:);
+            ERDbeta_hands_tot(:, :, i) = subjects.(subj_name).ERD_logBP_beta_avg_hands(1:minLen_ERDbeta_hands,:);
+        end
+        if i == 8
+            ERDmu_feet_tot(:, :, i-1)    = subjects.(subj_name).ERD_logBP_mu_avg_feet(1:minLen_ERDmu_feet,:);
+            ERDmu_hands_tot(:, :, i-1)   = subjects.(subj_name).ERD_logBP_mu_avg_hands(1:minLen_ERDmu_hands,:);
+            ERDbeta_feet_tot(:, :, i-1)  = subjects.(subj_name).ERD_logBP_beta_avg_feet(1:minLen_ERDbeta_feet,:);
+            ERDbeta_hands_tot(:, :, i-1) = subjects.(subj_name).ERD_logBP_beta_avg_hands(1:minLen_ERDbeta_hands,:);
+        end
+    end
+else
+    for i = 1:length(data)
+        subj_name = data(i);
         ERDmu_feet_tot(:, :, i)    = subjects.(subj_name).ERD_logBP_mu_avg_feet(1:minLen_ERDmu_feet,:);
         ERDmu_hands_tot(:, :, i)   = subjects.(subj_name).ERD_logBP_mu_avg_hands(1:minLen_ERDmu_hands,:);
         ERDbeta_feet_tot(:, :, i)  = subjects.(subj_name).ERD_logBP_beta_avg_feet(1:minLen_ERDbeta_feet,:);
         ERDbeta_hands_tot(:, :, i) = subjects.(subj_name).ERD_logBP_beta_avg_hands(1:minLen_ERDbeta_hands,:);
-    end
-    if i == 8
-        ERDmu_feet_tot(:, :, i-1)    = subjects.(subj_name).ERD_logBP_mu_avg_feet(1:minLen_ERDmu_feet,:);
-        ERDmu_hands_tot(:, :, i-1)   = subjects.(subj_name).ERD_logBP_mu_avg_hands(1:minLen_ERDmu_hands,:);
-        ERDbeta_feet_tot(:, :, i-1)  = subjects.(subj_name).ERD_logBP_beta_avg_feet(1:minLen_ERDbeta_feet,:);
-        ERDbeta_hands_tot(:, :, i-1) = subjects.(subj_name).ERD_logBP_beta_avg_hands(1:minLen_ERDbeta_hands,:);
+
     end
 end
 
@@ -475,85 +525,100 @@ ERDmu_hands_GA   = mean(ERDmu_hands_tot, 3);
 ERDbeta_feet_GA  = mean(ERDbeta_feet_tot, 3);
 ERDbeta_hands_GA = mean(ERDbeta_hands_tot, 3);
 
-ERDmu_feet_SE    = std(ERDmu_feet_tot, 0, 3)./sqrt(length(ERDmu_feet_tot(:,1,1)));
-ERDmu_hands_SE   = std(ERDmu_hands_tot, 0, 3)./sqrt(length(ERDmu_hands_tot(:,1,1)));
-ERDbeta_feet_SE  = std(ERDbeta_feet_tot, 0, 3)./sqrt(length(ERDbeta_feet_tot(:,1,1)));
-ERDbeta_hands_SE = std(ERDbeta_hands_tot, 0, 3)./sqrt(length(ERDbeta_hands_tot(:,1,1)));
+ERDmu_feet_SE    = std(ERDmu_feet_tot, 0, 3)./sqrt(length(ERDmu_feet_tot(1, 1, :)));
+ERDmu_hands_SE   = std(ERDmu_hands_tot, 0, 3)./sqrt(length(ERDmu_hands_tot(1, 1, :)));
+ERDbeta_feet_SE  = std(ERDbeta_feet_tot, 0, 3)./sqrt(length(ERDbeta_feet_tot(1, 1, :)));
+ERDbeta_hands_SE = std(ERDbeta_hands_tot, 0, 3)./sqrt(length(ERDbeta_hands_tot(1, 1, :)));
 
 % GA temporal plots
-% StandardError MOLTO STRANO
 figure(7)
+% time axis 
+T = 1/sample_rate;
+t = 0:T:(length(ERDmu_feet_GA(:,1,1))-1)*T;
+
 subplot(231), hold on
-plot(ERDmu_feet_GA(:, chns(1)), 'g')
-plot(ERDmu_feet_GA(:, chns(1)) - ERDmu_feet_SE(:, chns(1)), ':g')
-plot(ERDmu_feet_GA(:, chns(1)) + ERDmu_feet_SE(:, chns(1)), ':g')
-plot(ERDmu_hands_GA(:, chns(1)), 'r')
-plot(ERDmu_hands_GA(:, chns(1)) - ERDmu_hands_SE(:, chns(1)), ':r')
-plot(ERDmu_hands_GA(:, chns(1)) + ERDmu_hands_SE(:, chns(1)), ':r')
+plot(t, ERDmu_feet_GA(:, chns(1)), 'g')
+plot(t, ERDmu_feet_GA(:, chns(1)) - ERDmu_feet_SE(:, chns(1)), ':g')
+plot(t, ERDmu_feet_GA(:, chns(1)) + ERDmu_feet_SE(:, chns(1)), ':g')
+plot(t, ERDmu_hands_GA(:, chns(1)), 'r')
+plot(t, ERDmu_hands_GA(:, chns(1)) - ERDmu_hands_SE(:, chns(1)), ':r')
+plot(t, ERDmu_hands_GA(:, chns(1)) + ERDmu_hands_SE(:, chns(1)), ':r')
+xlabel('Time [s]')
+ylabel('[ERD/ERS]')
 title('Grand Average ERD logBP \mu C3')
 legend('both feet', 'both hands')
-axis tight
+ylim([-60, 170])
 hold off
 
 subplot(232), hold on
-plot(ERDmu_feet_GA(:, chns(2)), 'g')
-plot(ERDmu_feet_GA(:, chns(2)) - ERDmu_feet_SE(:, chns(2)), ':g')
-plot(ERDmu_feet_GA(:, chns(2)) + ERDmu_feet_SE(:, chns(2)), ':g')
-plot(ERDmu_hands_GA(:, chns(2)), 'r')
-plot(ERDmu_hands_GA(:, chns(2)) - ERDmu_hands_SE(:, chns(2)), ':r')
-plot(ERDmu_hands_GA(:, chns(2)) + ERDmu_hands_SE(:, chns(2)), ':r')
+plot(t, ERDmu_feet_GA(:, chns(2)), 'g')
+plot(t, ERDmu_feet_GA(:, chns(2)) - ERDmu_feet_SE(:, chns(2)), ':g')
+plot(t, ERDmu_feet_GA(:, chns(2)) + ERDmu_feet_SE(:, chns(2)), ':g')
+plot(t, ERDmu_hands_GA(:, chns(2)), 'r')
+plot(t, ERDmu_hands_GA(:, chns(2)) - ERDmu_hands_SE(:, chns(2)), ':r')
+plot(t, ERDmu_hands_GA(:, chns(2)) + ERDmu_hands_SE(:, chns(2)), ':r')
+xlabel('Time [s]')
+ylabel('[ERD/ERS]')
+ylim([-60, 170])
 title('Grand Average ERD logBP \mu Cz')
 legend('both feet', 'both hands')
-axis tight
 hold off
 
 subplot(233), hold on
-plot(ERDmu_feet_GA(:, chns(3)), 'g')
-plot(ERDmu_feet_GA(:, chns(3)) - ERDmu_feet_SE(:, chns(3)), ':g')
-plot(ERDmu_feet_GA(:, chns(3)) + ERDmu_feet_SE(:, chns(3)), ':g')
-plot(ERDmu_hands_GA(:, chns(3)), 'r')
-plot(ERDmu_hands_GA(:, chns(3)) - ERDmu_hands_SE(:, chns(3)), ':r')
-plot(ERDmu_hands_GA(:, chns(3)) + ERDmu_hands_SE(:, chns(3)), ':r')
+plot(t, ERDmu_feet_GA(:, chns(3)), 'g')
+plot(t, ERDmu_feet_GA(:, chns(3)) - ERDmu_feet_SE(:, chns(3)), ':g')
+plot(t, ERDmu_feet_GA(:, chns(3)) + ERDmu_feet_SE(:, chns(3)), ':g')
+plot(t, ERDmu_hands_GA(:, chns(3)), 'r')
+plot(t, ERDmu_hands_GA(:, chns(3)) - ERDmu_hands_SE(:, chns(3)), ':r')
+plot(t, ERDmu_hands_GA(:, chns(3)) + ERDmu_hands_SE(:, chns(3)), ':r')
+xlabel('Time [s]')
+ylabel('[ERD/ERS]')
+ylim([-60, 170])
 title('Grand Average ERD logBP \mu C4')
 legend('both feet', 'both hands')
-axis tight
 hold off
 
 subplot(234), hold on
-plot(ERDbeta_feet_GA(:, chns(1)), 'g')
-plot(ERDbeta_feet_GA(:, chns(1)) - ERDbeta_feet_SE(:, chns(1)), ':g')
-plot(ERDbeta_feet_GA(:, chns(1)) + ERDbeta_feet_SE(:, chns(1)), ':g')
-plot(ERDbeta_hands_GA(:, chns(1)), 'r')
-plot(ERDbeta_hands_GA(:, chns(1)) - ERDbeta_hands_SE(:, chns(1)), ':r')
-plot(ERDbeta_hands_GA(:, chns(1)) + ERDbeta_hands_SE(:, chns(1)), ':r')
+plot(t, ERDbeta_feet_GA(:, chns(1)), 'g')
+plot(t, ERDbeta_feet_GA(:, chns(1)) - ERDbeta_feet_SE(:, chns(1)), ':g')
+plot(t, ERDbeta_feet_GA(:, chns(1)) + ERDbeta_feet_SE(:, chns(1)), ':g')
+plot(t, ERDbeta_hands_GA(:, chns(1)), 'r')
+plot(t, ERDbeta_hands_GA(:, chns(1)) - ERDbeta_hands_SE(:, chns(1)), ':r')
+plot(t, ERDbeta_hands_GA(:, chns(1)) + ERDbeta_hands_SE(:, chns(1)), ':r')
+xlabel('Time [s]')
+ylabel('[ERD/ERS]')
+ylim([-60, 170])
 title('Grand Average ERD logBP \beta C3')
 legend('both feet', 'both hands')
-axis tight
 hold off
 
 subplot(235), hold on
-plot(ERDbeta_feet_GA(:, chns(2)), 'g')
-plot(ERDbeta_feet_GA(:, chns(2)) - ERDbeta_feet_SE(:, chns(2)), ':g')
-plot(ERDbeta_feet_GA(:, chns(2)) + ERDbeta_feet_SE(:, chns(2)), ':g')
-plot(ERDbeta_hands_GA(:, chns(2)), 'r')
-plot(ERDbeta_hands_GA(:, chns(2)) - ERDbeta_hands_SE(:, chns(2)), ':r')
-plot(ERDbeta_hands_GA(:, chns(2)) + ERDbeta_hands_SE(:, chns(2)), ':r')
+plot(t, ERDbeta_feet_GA(:, chns(2)), 'g')
+plot(t, ERDbeta_feet_GA(:, chns(2)) - ERDbeta_feet_SE(:, chns(2)), ':g')
+plot(t, ERDbeta_feet_GA(:, chns(2)) + ERDbeta_feet_SE(:, chns(2)), ':g')
+plot(t, ERDbeta_hands_GA(:, chns(2)), 'r')
+plot(t, ERDbeta_hands_GA(:, chns(2)) - ERDbeta_hands_SE(:, chns(2)), ':r')
+plot(t, ERDbeta_hands_GA(:, chns(2)) + ERDbeta_hands_SE(:, chns(2)), ':r')
+xlabel('Time [s]')
+ylabel('[ERD/ERS]')
+ylim([-60, 170])
 title('Grand Average ERD logBP \beta Cz')
 legend('both feet', 'both hands')
-axis tight
 hold off
 
 subplot(236), hold on
-plot(ERDbeta_feet_GA(:, chns(3)), 'g')
-plot(ERDbeta_feet_GA(:, chns(3)) - ERDbeta_feet_SE(:, chns(3)), ':g')
-plot(ERDbeta_feet_GA(:, chns(3)) + ERDbeta_feet_SE(:, chns(3)), ':g')
-plot(ERDbeta_hands_GA(:, chns(3)), 'r')
-plot(ERDbeta_hands_GA(:, chns(3)) - ERDbeta_hands_SE(:, chns(3)), ':r')
-plot(ERDbeta_hands_GA(:, chns(3)) + ERDbeta_hands_SE(:, chns(3)), ':r')
+plot(t, ERDbeta_feet_GA(:, chns(3)), 'g')
+plot(t, ERDbeta_feet_GA(:, chns(3)) - ERDbeta_feet_SE(:, chns(3)), ':g')
+plot(t, ERDbeta_feet_GA(:, chns(3)) + ERDbeta_feet_SE(:, chns(3)), ':g')
+plot(t, ERDbeta_hands_GA(:, chns(3)), 'r')
+plot(t, ERDbeta_hands_GA(:, chns(3)) - ERDbeta_hands_SE(:, chns(3)), ':r')
+plot(t, ERDbeta_hands_GA(:, chns(3)) + ERDbeta_hands_SE(:, chns(3)), ':r')
+xlabel('Time [s]')
+ylabel('[ERD/ERS]')
+ylim([-60, 170])
 title('Grand Average ERD logBP \beta C4')
 legend('both feet', 'both hands')
-axis tight
-hold off
+hold off
 
 
 % Topographic plots
