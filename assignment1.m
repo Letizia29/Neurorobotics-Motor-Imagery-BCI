@@ -930,5 +930,29 @@ for i = 1:length(data)
 end
 
 
-% Identify and extract the most relevant features for each subject and on
-% subject average
+%% Models
+
+for i = 1:length(data)
+    subj_name = data(i);
+
+    % Define the new matrix containing the data corresponding to the most
+    % discriminative features
+
+    row_feat = subjects.(subj_name).row_feat;
+    col_feat = subjects.(subj_name).col_feat;
+
+    train_set = zeros(size(subjects.(subj_name).wnds_CktoCFk, 1), length(col_feat));
+
+    for j = 1 : length(col_feat)
+        train_set(:, j) = subjects.(subj_name).wnds_CktoCFk(:, row_feat(j), col_feat(j));
+    end
+
+    X = train_set;
+    y = subjects.(subj_name).class;
+
+    mdl = fitcdiscr(X, y, 'DiscrimType','quadratic');
+
+    mdl_name = strcat(pwd, '\Data\', subj_name, '\model_calibration_data');
+    save(mdl_name, 'mdl', 'row_feat', 'col_feat')
+    
+end
