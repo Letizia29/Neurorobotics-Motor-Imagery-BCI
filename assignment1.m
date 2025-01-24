@@ -992,6 +992,7 @@ for i = 1:length(data)
     % Save important information (online runs)
     subjects.(subj_name).wnds_CktoCFk_online = wnds_CktoCFk_online;
     subjects.(subj_name).features_online = features_online;
+    subjects.(subj_name).class_online = class;
 
 end
 
@@ -1022,9 +1023,16 @@ for i = 1:length(data)
 
     mdl = fitcdiscr(X, y, 'DiscrimType','quadratic');
 
-    % data_subjets = subjects.(subj_name);
+    data_subjects.PSD_c_online = subjects.(subj_name).PSD_c_online;
+    data_subjects.h_PSD_online = subjects.(subj_name).h_PSD_online;
+    data_subjects.vectors_PSD_online = subjects.(subj_name).vectors_PSD_online;
+    data_subjects.wnds_CktoCFk_online = subjects.(subj_name).wnds_CktoCFk_online;
+    data_subjects.features_online = subjects.(subj_name).features_online;
+    data_subjects.row_feat = subjects.(subj_name).row_feat;
+    data_subjects.col_feat = subjects.(subj_name).col_feat;
+    data_subjects.class = subjects.(subj_name).class_online;
 
     name = strcat(pwd, '\Data\', subj_name, '\data');
-    % save(name, 'mdl', 'data_subjets')
+    save(name, 'mdl', 'data_subjects')
     
 end
