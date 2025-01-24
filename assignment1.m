@@ -56,12 +56,18 @@ for i = 1:length(data)
                 count_off = count_off + 1;
                 field_name = strcat("offline",string(count_off));
 
+                
+
+                [b, a] = butter(3, [3/(512/2), 49/(512/2)]);
+                s = filtfilt(b, a, s);
+
                 % Remove artifacts
                 [s, h] = remArtifacts(s, h);
 
                 t = 0 : 1/512 : (size(s, 1) - 1)/512;
                 figure()
                 plot(t, s)
+                title(['subj ', num2str(i), ' run ', num2str(j-2)])
 
                 subjects.(subj_name).(field_name).s = s;
                 subjects.(subj_name).(field_name).h = h;
@@ -555,7 +561,7 @@ xlabel('Time [s]')
 ylabel('[ERD/ERS]')
 title('Grand Average ERD logBP \mu C3')
 legend('both feet', 'both hands')
-ylim([-60, 170])
+% ylim([-60, 170])
 hold off
 
 subplot(232), hold on
@@ -567,7 +573,7 @@ plot(t, ERDmu_hands_GA(:, chns(2)) - ERDmu_hands_SE(:, chns(2)), ':r')
 plot(t, ERDmu_hands_GA(:, chns(2)) + ERDmu_hands_SE(:, chns(2)), ':r')
 xlabel('Time [s]')
 ylabel('[ERD/ERS]')
-ylim([-60, 170])
+% ylim([-60, 170])
 title('Grand Average ERD logBP \mu Cz')
 legend('both feet', 'both hands')
 hold off
@@ -581,7 +587,7 @@ plot(t, ERDmu_hands_GA(:, chns(3)) - ERDmu_hands_SE(:, chns(3)), ':r')
 plot(t, ERDmu_hands_GA(:, chns(3)) + ERDmu_hands_SE(:, chns(3)), ':r')
 xlabel('Time [s]')
 ylabel('[ERD/ERS]')
-ylim([-60, 170])
+% ylim([-60, 170])
 title('Grand Average ERD logBP \mu C4')
 legend('both feet', 'both hands')
 hold off
@@ -595,7 +601,7 @@ plot(t, ERDbeta_hands_GA(:, chns(1)) - ERDbeta_hands_SE(:, chns(1)), ':r')
 plot(t, ERDbeta_hands_GA(:, chns(1)) + ERDbeta_hands_SE(:, chns(1)), ':r')
 xlabel('Time [s]')
 ylabel('[ERD/ERS]')
-ylim([-60, 170])
+% ylim([-60, 170])
 title('Grand Average ERD logBP \beta C3')
 legend('both feet', 'both hands')
 hold off
@@ -609,7 +615,7 @@ plot(t, ERDbeta_hands_GA(:, chns(2)) - ERDbeta_hands_SE(:, chns(2)), ':r')
 plot(t, ERDbeta_hands_GA(:, chns(2)) + ERDbeta_hands_SE(:, chns(2)), ':r')
 xlabel('Time [s]')
 ylabel('[ERD/ERS]')
-ylim([-60, 170])
+% ylim([-60, 170])
 title('Grand Average ERD logBP \beta Cz')
 legend('both feet', 'both hands')
 hold off
@@ -623,10 +629,10 @@ plot(t, ERDbeta_hands_GA(:, chns(3)) - ERDbeta_hands_SE(:, chns(3)), ':r')
 plot(t, ERDbeta_hands_GA(:, chns(3)) + ERDbeta_hands_SE(:, chns(3)), ':r')
 xlabel('Time [s]')
 ylabel('[ERD/ERS]')
-ylim([-60, 170])
+% ylim([-60, 170])
 title('Grand Average ERD logBP \beta C4')
 legend('both feet', 'both hands')
-hold off
+hold off
 
 
 % Topographic plots
@@ -644,22 +650,22 @@ subplot(221)
 topoplot(squeeze(ERD_Ref_773), chanlocs16);
 title('Reference - \mu band - both hands')
 colorbar
-clim([-20, 50])
+% clim([-20, 50])
 subplot(222)
 topoplot(squeeze(ERD_Act_773), chanlocs16);
 title('Activity - \mu band - both hands')
 colorbar
-clim([-20, 50])
+% clim([-20, 50])
 subplot(223)
 topoplot(squeeze(ERD_Ref_771), chanlocs16);
 title('Reference - \mu band - both feet')
 colorbar
-clim([-20, 50])
+% clim([-20, 50])
 subplot(224)
 topoplot(squeeze(ERD_Act_771), chanlocs16);
 title('Activity - \mu band - both feet')
 colorbar
-clim([-20, 50])
+% clim([-20, 50])
 
 % beta band
 ERD_Ref_773 = mean(ERDbeta_hands_GA(1:len, :), 1);
@@ -672,22 +678,22 @@ subplot(221)
 topoplot(squeeze(ERD_Ref_773), chanlocs16);
 title('Reference - \beta band - both hands')
 colorbar
-clim([-20, 50])
+% clim([-20, 50])
 subplot(222)
 topoplot(squeeze(ERD_Act_773), chanlocs16);
 title('Activity - \beta band - both hands')
 colorbar
-clim([-20, 50])
+% clim([-20, 50])
 subplot(223)
 topoplot(squeeze(ERD_Ref_771), chanlocs16);
 title('Reference - \beta band - both feet')
 colorbar
-clim([-20, 50])
+% clim([-20, 50])
 subplot(224)
 topoplot(squeeze(ERD_Act_771), chanlocs16);
 title('Activity - \beta band - both feet')
 colorbar
-clim([-20, 50])
+% clim([-20, 50])
 
 
 %% ERD/ERS Spectrogram
@@ -695,12 +701,16 @@ clim([-20, 50])
 %% Concatenate the files
 
 for i = 1:length(data)
+
+    disp(['Subject ', num2str(i)])
+
     subj_name = data(i);
     runs_names = fieldnames(subjects.(subj_name));
     subjects.(subj_name).PSD_c = [];
     POS = [];
     DUR = [];
 
+    % Concatenation of the PSD for the offline files
     for j = 1:length(runs_names)
 
         if contains(runs_names{j}, 'offline', 'IgnoreCase', true)
@@ -718,6 +728,30 @@ for i = 1:length(data)
     subjects.(subj_name).h_PSD.TYP = subjects.(subj_name).h.TYP;
 
     subjects.(subj_name).vectors_PSD = labelVecs(subjects.(subj_name).PSD_c, subjects.(subj_name).h_PSD);
+
+    % Concatenation of the PSD for the online files
+
+    subjects.(subj_name).PSD_c_online = [];
+    POS = [];
+    DUR = [];
+
+    for j = 1:length(runs_names)
+
+        if contains(runs_names{j}, 'online', 'IgnoreCase', true)
+
+            DUR = [DUR; subjects.(subj_name).(runs_names{j}).h_PSD.DUR];
+            POS = [POS; subjects.(subj_name).(runs_names{j}).h_PSD.POS + length(subjects.(subj_name).PSD_c_online)];
+
+            subjects.(subj_name).PSD_c_online = [subjects.(subj_name).PSD_c_online; subjects.(subj_name).(runs_names{j}).PSD];        
+        end
+
+    end
+
+    subjects.(subj_name).h_PSD_online.POS = POS;
+    subjects.(subj_name).h_PSD_online.DUR = DUR;
+    subjects.(subj_name).h_PSD_online.TYP = subjects.(subj_name).h.TYP;
+
+    subjects.(subj_name).vectors_PSD_online = labelVecs(subjects.(subj_name).PSD_c_online, subjects.(subj_name).h_PSD_online);
     
 end
 
@@ -789,8 +823,10 @@ for i = 1:length(data)
     % Reference
     Reference = repmat(mean(FixData), [size(Activity, 1) 1 1 1]);
 
-    %subjects.(subj_name).ERD = 100 * (Activity- Reference)./ Reference;
-    ERD = log(Activity ./ Reference);
+    ERD = 100 * (Activity- Reference)./ Reference;
+    % ERD = log(Activity ./ Reference);
+    % ERD = 10 * log10(Activity ./ Reference);
+    
     subjects.(subj_name).ERD_PSD = ERD;
 
     % ho aggiunto la definizione di Ck dentro labelVecs, perché l'ho usato anche sopra,
@@ -816,7 +852,7 @@ for i = 1:length(data)
     imagesc(t, f, ERDavg_feet(:, :, 7)')
     colormap hot
     colorbar
-    clim([-1.1, 1.7])
+    % clim([-1.1, 1.7])
     name = char(subj_name);
     title(strcat('ERD avg both feet - C3 - ',name(1:3)))
     set(gca,'YDir','normal')
@@ -828,7 +864,7 @@ for i = 1:length(data)
     imagesc(t, f, ERDavg_feet(:, :, 9)')
     colormap hot
     colorbar
-    clim([-1.1, 1.7])
+    % clim([-1.1, 1.7])
     name = char(subj_name);
     title(strcat('ERD avg both feet - Cz - ',name(1:3)))
     set(gca,'YDir','normal')
@@ -840,7 +876,7 @@ for i = 1:length(data)
     imagesc(t, f, ERDavg_feet(:, :, 11)')
     colormap hot
     colorbar
-    clim([-1.1, 1.7])
+    % clim([-1.1, 1.7])
     name = char(subj_name);
     title(strcat('ERD avg both feet - C4 - ',name(1:3)))
     set(gca,'YDir','normal')
@@ -849,10 +885,10 @@ for i = 1:length(data)
 
     set(0,'CurrentFigure',ax4)
     subplot(2, 4, mod(i-1, 8)+1, 'Parent', ax4)
-    imagesc(t, f, ERDavg_feet(:, :, chns(1))')
+    imagesc(t, f, ERDavg_hands(:, :, chns(1))')
     colormap hot
     colorbar
-    clim([-1.1, 1.7])
+    % clim([-1.1, 1.7])
     name = char(subj_name);
     title(strcat('ERD avg both hands - C3 - ',name(1:3)))
     set(gca,'YDir','normal')
@@ -861,10 +897,10 @@ for i = 1:length(data)
 
     set(0,'CurrentFigure',ax5)
     subplot(2, 4, mod(i-1, 8)+1, 'Parent', ax5)
-    imagesc(t, f, ERDavg_feet(:, :, chns(2))')
+    imagesc(t, f, ERDavg_hands(:, :, chns(2))')
     colormap hot
     colorbar
-    clim([-1.1, 1.7])
+    % clim([-1.1, 1.7])
     name = char(subj_name);
     title(strcat('ERD avg both hands - Cz - ',name(1:3)))
     set(gca,'YDir','normal')
@@ -873,10 +909,10 @@ for i = 1:length(data)
 
     set(0,'CurrentFigure',ax6)
     subplot(2, 4, mod(i-1, 8)+1, 'Parent', ax6)
-    imagesc(t, f, ERDavg_feet(:, :, chns(3))')
+    imagesc(t, f, ERDavg_hands(:, :, chns(3))')
     colormap hot
     colorbar
-    clim([-1.1, 1.7])
+    % clim([-1.1, 1.7])
     name = char(subj_name);
     title(strcat('ERD avg both hands - C4 - ',name(1:3)))
     set(gca,'YDir','normal')
@@ -897,12 +933,8 @@ ax0 = figure(16);
 
 for i = 1:length(data)
     subj_name = data(i);
-    runs_names = fieldnames(subjects.(subj_name));
 
-    % Store the values in temp variables
-    h_PSD = subjects.(subj_name).h_PSD;
-    PSD_c = subjects.(subj_name).PSD_c;
-
+    % Define features
     wnds_CktoCFk = log(subjects.(subj_name).PSD_c(subjects.(subj_name).vectors_PSD.Ak > 0 | subjects.(subj_name).vectors_PSD.CFk > 0, :, :));
     features = reshape(wnds_CktoCFk, [size(wnds_CktoCFk, 1), size(wnds_CktoCFk, 2) * size(wnds_CktoCFk, 3)]);
 
@@ -933,9 +965,39 @@ for i = 1:length(data)
 
     [row_feat, col_feat] = find(ismember(reshape(FS, [23, 16]), maxk(FS, 3)));      % Indeces of the 3 most discriminative features
 
-    plot(f(row_feat), col_feat, 'ro', 'MarkerSize', 15, 'LineWidth', 2)             % Circle the most discriminative features
+    % Save important information for the models (offline runs)
+    subjects.(subj_name).wnds_CktoCFk = wnds_CktoCFk;
+    subjects.(subj_name).class = class;
+    subjects.(subj_name).row_feat = row_feat;
+    subjects.(subj_name).col_feat = col_feat;
+
+    plot(f(row_feat), col_feat, 'ro', 'MarkerSize', 10, 'LineWidth', 2)             % Circle the most discriminative features
     hold off
+
+
+    % Define features for online runs
+    wnds_CktoCFk_online = log(subjects.(subj_name).PSD_c_online(subjects.(subj_name).vectors_PSD_online.Ak > 0 | subjects.(subj_name).vectors_PSD_online.CFk > 0, :, :));
+    features_online = reshape(wnds_CktoCFk_online, [size(wnds_CktoCFk_online, 1), size(wnds_CktoCFk_online, 2) * size(wnds_CktoCFk_online, 3)]);
+
+    idx = subjects.(subj_name).vectors_PSD_online.Ak + subjects.(subj_name).vectors_PSD_online.CFk;       % Vector containing 771, 773 or 781
+    idx = idx(idx > 0);
+    class = (idx ~= 781) .* idx;     % Vector containing the class for each window
+
+    for j = 2 : length(idx)
+        if class(j-1) > 0 && class(j) == 0      % If the current class is 0, then
+            class(j) = class(j-1);              % the value is updated according
+        end                                     % to the previous state.
+    end
+
+    % Save important information (online runs)
+    subjects.(subj_name).wnds_CktoCFk_online = wnds_CktoCFk_online;
+    subjects.(subj_name).features_online = features_online;
+
 end
+
+
+% Identify and extract the most relevant features for each subject and on
+% subject average
 
 
 %% Models
@@ -960,7 +1022,9 @@ for i = 1:length(data)
 
     mdl = fitcdiscr(X, y, 'DiscrimType','quadratic');
 
-    mdl_name = strcat(pwd, '\Data\', subj_name, '\model_calibration_data');
-    save(mdl_name, 'mdl', 'row_feat', 'col_feat')
+    % data_subjets = subjects.(subj_name);
+
+    name = strcat(pwd, '\Data\', subj_name, '\data');
+    % save(name, 'mdl', 'data_subjets')
     
 end
