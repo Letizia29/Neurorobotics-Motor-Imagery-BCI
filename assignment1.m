@@ -55,6 +55,14 @@ for i = 1:length(data)
             if run_name(21:27) == 'offline'
                 count_off = count_off + 1;
                 field_name = strcat("offline",string(count_off));
+
+                % Remove artifacts
+                [s, h] = remArtifacts(s, h);
+
+                t = 0 : 1/512 : (size(s, 1) - 1)/512;
+                figure()
+                plot(t, s)
+
                 subjects.(subj_name).(field_name).s = s;
                 subjects.(subj_name).(field_name).h = h;
 
