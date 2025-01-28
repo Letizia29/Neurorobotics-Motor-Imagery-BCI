@@ -20,19 +20,27 @@ addpath(fullfile(pwd, "Toolboxes\biosig\biosig\t250_ArtifactPreProcessingQuality
 addpath(genpath(fullfile(pwd, "Data/")))
 
 %% Data loading and storing
+
 m = "_micontinuous";
 data = [strcat("aj1",m),strcat("aj3",m),strcat("aj4",m),strcat("aj7",m),strcat("aj9",m),strcat("ai6",m),strcat("ai7",m),strcat("ai8",m)];
 
 subjects = struct(); % where s and h data will be saved for each subject
 
 for i = 1:length(data)
+
+    disp(['Loading subject ', data{i}(1:3), ' data'])
     subj_name = data(i);
 
     % load data
     subjects.(subj_name) = load(fullfile(pwd, strcat("Data/", subj_name, '/data.mat')));
 end
 
+clc
+disp('Done')
+
+
 %% Features extraction
+
 for i = 1:length(data)
     subj_name = data(i);
 
@@ -50,7 +58,10 @@ for i = 1:length(data)
 
 end
 
-%% Model prediction
+%% Model prediction on online runs
+
+clc
+disp('Model evaluation on online runs')
 
 for i = 1:length(data)
     subj_name = data(i);
@@ -70,9 +81,9 @@ for i = 1:length(data)
     
     % bar plot of single sample accuracies
     % Sample accuracies
-    overall_accuracy = mean(Gk == Ck) * 100; % Overall accuracy in %
-    both_hands_accuracy = mean(Gk_hands == Ck(Ck == 773)) * 100; % Both hands accuracy in %
-    both_feet_accuracy = mean(Gk_feet == Ck(Ck == 771)) * 100; % Both feet accuracy in %
+    overall_accuracy    = mean(Gk == Ck) * 100;                     % Overall accuracy in %
+    both_hands_accuracy = mean(Gk_hands == Ck(Ck == 773)) * 100;    % Both hands accuracy in %
+    both_feet_accuracy  = mean(Gk_feet == Ck(Ck == 771)) * 100;     % Both feet accuracy in %
     
     % save in the data structure
     subjects.(subj_name).data_subjects.Gk = Gk;
@@ -85,6 +96,11 @@ for i = 1:length(data)
     subjects.(subj_name).data_subjects.hands_acc = both_hands_accuracy;
     subjects.(subj_name).data_subjects.feet_acc = both_feet_accuracy;
 
+    % Print accuracies
+    fprintf('Accuracies of the model for subject %s\n', data{i}(1:3));
+    fprintf('Accuracy: %f\n', overall_accuracy);
+    fprintf('Accuracy both feet: %f\n', both_hands_accuracy);
+    fprintf('Accuracy both hands: %f\n\n', both_feet_accuracy);
 
     % Data for the bar graph
     accuracies = [overall_accuracy, both_hands_accuracy, both_feet_accuracy];
@@ -95,7 +111,7 @@ for i = 1:length(data)
     set(gca, 'xticklabel', x_labels)
     ylabel('Accuracy [%]')
     title('Single sample accuracy on test set')
-    
+    ylim([0, 100])
     grid on
 
 end
@@ -109,6 +125,8 @@ alpha = 0.95; % smoothing parameter [0 1]
 for i = 1:length(data)
     subj_name = data(i);
     pp = subjects.(subj_name).data_subjects.pp;
+
+    % COME SCUSA
     trials_windows = subjects.(subj_name).data_subjects.vectors_PSD_online.Tk(subjects.(subj_name).data_subjects.vectors_PSD_online.Ak > 0 | subjects.(subj_name).data_subjects.vectors_PSD_online.CFk > 0);
     
     nwindows = length(pp);
@@ -130,46 +148,95 @@ for i = 1:length(data)
 end
 
 
-% DA LAB07 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % DA ADATTARE
 
-% %% Plot trial accuracy
-% thr = [0.2 0.8];
-% 
-% % posterior proabablity pp of trial 55
-% trial_number = 55;
-% pp_trial = pp(trials_windows == trial_number,:);
-% D_trial = D(trials_windows == trial_number,:); % integrated probability
-% samples = 1:length(pp_trial(:,2));
-% 
-% figure(3), hold on
-% scatter(samples, pp_trial(:,2), 'k')
-% plot(samples, D_trial(:,2), 'k', 'LineWidth', 2)
-% title(strcat('Trial ', num2str(trial_number), ' - Class both hands'))
-% xlabel('samples')
-% ylabel('probability/control')
-% legend('posterior probability', 'integrated probability', 'Location', 'best')
-% 
-% yline(0.5, '--')
-% yline(thr(1), 'k')
-% yline(thr(2), 'k')
-% ylim([0 1])
-% xlim([0 samples(end)])
-% 
-% %% Trial accuracy with and without rejection of time-out trials
-% Gk_trial_all = zeros(max(trials_windows),1);
-% % compute classification for succesful trials (no timeout)
-% for trial_number = 1:max(trials_windows)
-%     D_trial = D(trials_windows == trial_number,:);
-%     for i = 1:length(D_trial)
-%         if D_trial(i) <= thr(1)
-%             Gk_trial_all(trial_number) = 773; % trial classified as both hands
-%         end
-%         if D_trial(i) >= thr(2)
-%             Gk_trial_all(trial_number) = 771; % trial classified as both hands
-%         end
-%     end
-% end
+%% Plot trial accuracy
+
+thr = [0.2 0.8];
+
+% posterior proabablity pp of trial 55
+% trial_number = randi(100, 1);
+sel_trial = 30;
+
+for i = 1:length(data)
+    subj_name = data(i);
+
+    trials_windows = subjects.(subj_name).data_subjects.vectors_PSD_online.Tk(subjects.(subj_name).data_subjects.vectors_PSD_online.Ak > 0 | subjects.(subj_name).data_subjects.vectors_PSD_online.CFk > 0);
+    pp = subjects.(subj_name).data_subjects.pp;
+    D = subjects.(subj_name).data_subjects.D;
+
+    pp_trial = pp(trials_windows == sel_trial,:);
+    D_trial = D(trials_windows == sel_trial,:); % integrated probability
+    samples = 1:length(pp_trial(:,2));
+
+    figure
+    hold on
+    scatter(samples, pp_trial(:,2), 'k')
+    plot(samples, D_trial(:,2), 'k', 'LineWidth', 2)
+    title(['Trial ', num2str(sel_trial), ' - Class both hands'])
+    xlabel('samples')
+    ylabel('probability/control')
+    legend('posterior probability', 'integrated probability', 'Location', 'best')
+    yline(0.5, '--')
+    yline(thr(1), 'k')
+    yline(thr(2), 'k')
+    ylim([0 1])
+    xlim([1 samples(end)])
+
+    Gk_trial_all = zeros(max(trials_windows),1);
+
+    % compute classification for succesful trials (no timeout)
+    for trial_number = 1 : max(trials_windows)
+        D_trial = D(trials_windows == trial_number,:);
+        for j = 1 : length(D_trial)
+            if D_trial(j) <= thr(1)
+                Gk_trial_all(trial_number) = 773; % trial classified as both hands
+                % break ?????????????????????
+            end
+            if D_trial(j) >= thr(2)
+                Gk_trial_all(trial_number) = 771; % trial classified as both hands
+                % break ?????????????????????
+                % Metterei break (se ho capito bene cosa fa il codice)
+                % in modo tale da aggiornare il vettore Gk_trial_all e
+                % uscire subito, senza poterlo più aggiornare dopo, appena
+                % si supera la soglia
+
+                % La mia implementazione (non penso sia giusta ma avevo pensato di fare sta cosa)
+                % era quella di contare il numero di sample che superano la
+                % soglia e prendere la classe relativa al contatore con
+                % valore maggiore. in questo modo, anche se per sbaglio si
+                % supera la soglia sbagliata, se si riesce a correggere il
+                % numero di campioni contati "aggiusta" la predizione
+
+                % Però a te veniva simile al prof, quindi direi di lasciare
+                % la tua
+            end
+        end
+    end
+
+    subjects.(subj_name).Gk_trial_all = Gk_trial_all;
+end
+
+
+
+%% Trial accuracy with and without rejection of time-out trials
+
+trial_accuracy_no_rejection = zeros(1, length(data));
+
+for i = 1:length(data)
+    subj_name = data(i);
+
+    trials_windows = subjects.(subj_name).data_subjects.vectors_PSD_online.Tk(subjects.(subj_name).data_subjects.vectors_PSD_online.Ak > 0 | subjects.(subj_name).data_subjects.vectors_PSD_online.CFk > 0);
+    pp = subjects.(subj_name).data_subjects.pp;
+    D = subjects.(subj_name).data_subjects.D;
+
+    
+
+    Gk_trial_all = subjects.(subj_name).Gk_trial_all;
+
+    trial_accuracy_no_rejection(i) = mean(Gk_trial_all == subjects.(subj_name).data_subjects.vectors_PSD_online.Ck) * 100;
+
+end
 % 
 % % trial based accuracy
 % % without rejection
