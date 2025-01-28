@@ -59,7 +59,6 @@ for i = 1:length(data)
                 count_off = count_off + 1;
                 field_name = strcat("offline",string(count_off));
 
-                
 
                 [b, a] = butter(3, [3/(512/2), 49/(512/2)]);
                 s = filtfilt(b, a, s);
@@ -67,10 +66,10 @@ for i = 1:length(data)
                 % Remove artifacts
                 [s, h] = remArtifacts(s, h);
 
-                t = 0 : 1/512 : (size(s, 1) - 1)/512;
-                figure()
-                plot(t, s)
-                title(['subj ', num2str(i), ' run ', num2str(j-2)])
+                % t = 0 : 1/512 : (size(s, 1) - 1)/512;
+                % figure()
+                % plot(t, s)
+                % title(['subj ', num2str(i), ' run ', num2str(j-2)])
 
                 subjects.(subj_name).(field_name).s = s;
                 subjects.(subj_name).(field_name).h = h;
@@ -99,6 +98,7 @@ for i = 1:length(data)
         end
     end
 end
+
 %% Process the data through log band power computation and ERD/ERS
 
 % for each subject, concatenate the offline files, compute log band power
@@ -169,6 +169,9 @@ Wn_beta = 2*[W1 W2]/sample_rate;
 [b_mu, a_mu] = butter(n_mu, Wn_mu);
 [b_beta, a_beta] = butter(n_beta, Wn_beta);
 
+starting_time_cue = zeros(length(data), 1);
+starting_time_cf  = zeros(length(data), 1);
+
 for i = 1:length(data)
 
     disp(['Processing subject ', data{i}(1:3), ' data'])
@@ -220,6 +223,13 @@ for i = 1:length(data)
     % Get the number and length of trials
     ntrials = length(startTrial);
     trial_length = min(stopTrial - startTrial);
+
+    % Find the minimum length trial
+    min_trial = find(trial_length == (stopTrial - startTrial), 1, "first");
+
+    % Save the starting time of Cue and Continuous Feedback
+    starting_time_cue(i) = h.DUR(min_trial*4-2);
+    starting_time_cf(i)  = h.DUR(min_trial*4-2) + h.DUR(min_trial*4-1);
 
     Activity_mu = zeros(trial_length, size(sfilt_sq_ma_mu, 2), ntrials);          % [samples x channels x trials]
     Activity_beta = zeros(trial_length, size(sfilt_sq_ma_beta, 2), ntrials);      % [samples x channels x trials]
@@ -331,6 +341,11 @@ for i = 1:length(data)
     plot(t, ERD_logBP_mu_avg_hands(:, chns(1)) + ERD_logBP_mu_SE_hands(:, chns(1)), ':r')
     plot(t, ERD_logBP_mu_avg_feet(:, chns(1)) - ERD_logBP_mu_SE_feet(:, chns(1)), ':g')
     plot(t, ERD_logBP_mu_avg_feet(:, chns(1)) + ERD_logBP_mu_SE_feet(:, chns(1)), ':g')
+    % Starting time of Cue and CF
+    time_cue = starting_time_cue(i)/512;
+    time_cf = starting_time_cf(i)/512;
+    xline(time_cue, 'k--')
+    xline(time_cf, 'k--')
     name = char(subj_name);
     title(strcat('ERD avg logBP \mu - C3 - ',name(1:3)))
     legend('both feet', 'both hands')
@@ -347,6 +362,11 @@ for i = 1:length(data)
     plot(t, ERD_logBP_mu_avg_hands(:, chns(2)) + ERD_logBP_mu_SE_hands(:, chns(2)), ':r')
     plot(t, ERD_logBP_mu_avg_feet(:, chns(2)) - ERD_logBP_mu_SE_feet(:, chns(2)), ':g')
     plot(t, ERD_logBP_mu_avg_feet(:, chns(2)) + ERD_logBP_mu_SE_feet(:, chns(2)), ':g')
+    % Starting time of Cue and CF
+    time_cue = starting_time_cue(i)/512;
+    time_cf = starting_time_cf(i)/512;
+    xline(time_cue, 'k--')
+    xline(time_cf, 'k--')
     name = char(subj_name);
     title(strcat('ERD avg logBP \mu - Cz - ',name(1:3)))
     legend('both feet', 'both hands')
@@ -363,6 +383,11 @@ for i = 1:length(data)
     plot(t, ERD_logBP_mu_avg_hands(:, chns(3)) + ERD_logBP_mu_SE_hands(:, chns(3)), ':r')
     plot(t, ERD_logBP_mu_avg_feet(:, chns(3)) - ERD_logBP_mu_SE_feet(:, chns(3)), ':g')
     plot(t, ERD_logBP_mu_avg_feet(:, chns(3)) + ERD_logBP_mu_SE_feet(:, chns(3)), ':g')
+    % Starting time of Cue and CF
+    time_cue = starting_time_cue(i)/512;
+    time_cf = starting_time_cf(i)/512;
+    xline(time_cue, 'k--')
+    xline(time_cf, 'k--')
     name = char(subj_name);
     title(strcat('ERD avg logBP \mu - C4 - ',name(1:3)))
     legend('both feet', 'both hands')
@@ -379,6 +404,11 @@ for i = 1:length(data)
     plot(t, ERD_logBP_beta_avg_hands(:, chns(1)) + ERD_logBP_beta_SE_hands(:, chns(1)), ':r')
     plot(t, ERD_logBP_beta_avg_feet(:, chns(1)) - ERD_logBP_beta_SE_feet(:, chns(1)), ':g')
     plot(t, ERD_logBP_beta_avg_feet(:, chns(1)) + ERD_logBP_beta_SE_feet(:, chns(1)), ':g')
+    % Starting time of Cue and CF
+    time_cue = starting_time_cue(i)/512;
+    time_cf = starting_time_cf(i)/512;
+    xline(time_cue, 'k--')
+    xline(time_cf, 'k--')
     name = char(subj_name);
     title(strcat('ERD avg logBP \beta - C3 - ',name(1:3)))
     legend('both feet', 'both hands')
@@ -395,6 +425,11 @@ for i = 1:length(data)
     plot(t, ERD_logBP_beta_avg_hands(:, chns(2)) + ERD_logBP_beta_SE_hands(:, chns(2)), ':r')
     plot(t, ERD_logBP_beta_avg_feet(:, chns(2)) - ERD_logBP_beta_SE_feet(:, chns(2)), ':g')
     plot(t, ERD_logBP_beta_avg_feet(:, chns(2)) + ERD_logBP_beta_SE_feet(:, chns(2)), ':g')
+    % Starting time of Cue and CF
+    time_cue = starting_time_cue(i)/512;
+    time_cf = starting_time_cf(i)/512;
+    xline(time_cue, 'k--')
+    xline(time_cf, 'k--')
     name = char(subj_name);
     title(strcat('ERD avg logBP \beta - Cz - ',name(1:3)))
     legend('both feet', 'both hands')
@@ -411,6 +446,11 @@ for i = 1:length(data)
     plot(t, ERD_logBP_beta_avg_hands(:, chns(3)) + ERD_logBP_beta_SE_hands(:, chns(3)), ':r')
     plot(t, ERD_logBP_beta_avg_feet(:, chns(3)) - ERD_logBP_beta_SE_feet(:, chns(3)), ':g')
     plot(t, ERD_logBP_beta_avg_feet(:, chns(3)) + ERD_logBP_beta_SE_feet(:, chns(3)), ':g')
+    % Starting time of Cue and CF
+    time_cue = starting_time_cue(i)/512;
+    time_cf = starting_time_cf(i)/512;
+    xline(time_cue, 'k--')
+    xline(time_cf, 'k--')
     name = char(subj_name);
     title(strcat('ERD avg logBP \beta - C4 - ',name(1:3)))
     legend('both feet', 'both hands')
@@ -632,22 +672,22 @@ subplot(221)
 topoplot(squeeze(ERD_Ref_773), chanlocs16);
 title('Reference - \mu band - both hands')
 colorbar
-% clim([-20, 50])
+clim([-20, 50])
 subplot(222)
 topoplot(squeeze(ERD_Act_773), chanlocs16);
 title('Activity - \mu band - both hands')
 colorbar
-% clim([-20, 50])
+clim([-20, 50])
 subplot(223)
 topoplot(squeeze(ERD_Ref_771), chanlocs16);
 title('Reference - \mu band - both feet')
 colorbar
-% clim([-20, 50])
+clim([-20, 50])
 subplot(224)
 topoplot(squeeze(ERD_Act_771), chanlocs16);
 title('Activity - \mu band - both feet')
 colorbar
-% clim([-20, 50])
+clim([-20, 50])
 
 % beta band
 ERD_Ref_773 = mean(ERDbeta_hands_GA(1:len, :), 1);
@@ -660,22 +700,22 @@ subplot(221)
 topoplot(squeeze(ERD_Ref_773), chanlocs16);
 title('Reference - \beta band - both hands')
 colorbar
-% clim([-20, 50])
+clim([-20, 50])
 subplot(222)
 topoplot(squeeze(ERD_Act_773), chanlocs16);
 title('Activity - \beta band - both hands')
 colorbar
-% clim([-20, 50])
+clim([-20, 50])
 subplot(223)
 topoplot(squeeze(ERD_Ref_771), chanlocs16);
 title('Reference - \beta band - both feet')
 colorbar
-% clim([-20, 50])
+clim([-20, 50])
 subplot(224)
 topoplot(squeeze(ERD_Act_771), chanlocs16);
 title('Activity - \beta band - both feet')
 colorbar
-% clim([-20, 50])
+clim([-20, 50])
 
 
 %% ERD/ERS Spectrogram
@@ -684,7 +724,7 @@ colorbar
 
 for i = 1:length(data)
 
-    disp(['Subject ', num2str(i)])
+    disp(['Subject ', data{i}(1:3)])
 
     subj_name = data(i);
     runs_names = fieldnames(subjects.(subj_name));
@@ -1000,10 +1040,15 @@ for i = 1:length(data)
         train_set(:, j) = subjects.(subj_name).wnds_CktoCFk(:, row_feat(j), col_feat(j));
     end
 
+    subjects.(subj_name).train_set = train_set;
+
     X = train_set;
     y = subjects.(subj_name).class;
 
+    fprintf('Training the model for subject %s\n', data{i}(1:3))
+
     mdl = fitcdiscr(X, y, 'DiscrimType','quadratic');
+    subjects.(subj_name).mdl = mdl;
 
     data_subjects.PSD_c_online = subjects.(subj_name).PSD_c_online;
     data_subjects.h_PSD_online = subjects.(subj_name).h_PSD_online;
@@ -1017,4 +1062,43 @@ for i = 1:length(data)
     name = strcat(pwd, '\Data\', subj_name, '\data');
     save(name, 'mdl', 'data_subjects')
     
+end
+
+%% Model evaluation on training data
+
+for i = 1:length(data)
+    subj_name = data(i);
+
+    mdl = subjects.(subj_name).mdl;
+
+    % Model prediction
+    [Gk, pp] = predict(mdl, subjects.(subj_name).train_set);
+
+    y = subjects.(subj_name).class;
+
+    % Calculate the total accuracy (correct predictions over total predictions)
+    tot_accuracy = mean(Gk == y) * 100;
+    
+    % Calculate class accuracy separately
+    feet_accuracy  = mean(Gk(y == 771) == y(y == 771)) * 100;
+    hands_accuracy = mean(Gk(y == 773) == y(y == 773)) * 100;
+    
+    % Print accuracies
+    fprintf('Accuracies of the model for subject %s\n', data{i}(1:3));
+    fprintf('Accuracy: %f\n', tot_accuracy);
+    fprintf('Accuracy both feet: %f\n', feet_accuracy);
+    fprintf('Accuracy both hands: %f\n\n', hands_accuracy);
+
+    % Accuracy bar plot
+    xaxis = ["overall" "both hands" "both feet"];
+    accuracies = [tot_accuracy, hands_accuracy, feet_accuracy];
+
+    % Bar graphs
+    figure
+    title(['Single sample accuracy on training set for subject ', data{i}(i)])
+    bar(xaxis, accuracies)
+    ylabel('Accuracy [%]')
+    ylim([0, 100])
+    grid on
+
 end
