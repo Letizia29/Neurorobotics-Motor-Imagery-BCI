@@ -858,6 +858,9 @@ for i = 1:length(data)
     ERDavg_feet  = mean(ERD(:, :, :, subjects.(subj_name).vectors_PSD.Ck == 771), 4);
     ERDavg_hands = mean(ERD(:, :, :, subjects.(subj_name).vectors_PSD.Ck == 773), 4);
 
+    subjects.(subj_name).ERDavg_feet = ERDavg_feet;
+    subjects.(subj_name).ERDavg_hands = ERDavg_hands;
+
 
     % Visualization
     
@@ -942,6 +945,123 @@ for i = 1:length(data)
     hold off
 
 end
+
+%% GRAND AVERAGE
+% for ERS/ERS on PSD
+
+% adjust different lengths
+minLen_ERDfeet    = inf;
+minLen_ERDhands   = inf;
+
+for i = 1:length(data)
+    subj_name = data(i);
+    if length(subjects.(subj_name).ERDavg_feet) <  minLen_ERDfeet
+        minLen_ERDfeet = length(subjects.(subj_name).ERDavg_feet);
+    end
+    if length(subjects.(subj_name).ERDavg_hands) <  minLen_ERDhands
+        minLen_ERDhands = length(subjects.(subj_name).ERDavg_hands);
+    end
+end
+
+% save data from all subjects
+ERDfeet_tot    = zeros(minLen_ERDfeet, 23, 16, length(data)-1);
+ERDhands_tot   = zeros(minLen_ERDhands, 23, 16, length(data)-1);
+
+remove_sub7 = 0;
+
+if remove_sub7 == 1
+
+    for i = 1:length(data)
+        subj_name = data(i);
+        if i < 7 % remove subject 7
+            ERDfeet_tot(:, :, :, i)    = subjects.(subj_name).ERDavg_feet(1:minLen_ERDfeet,:,:);
+            ERDhands_tot(:, :, :, i)   = subjects.(subj_name).ERDavg_hands(1:minLen_ERDhands,:,:);
+        end
+        if i == 8
+            ERDfeet_tot(:, :, :, i-1)    = subjects.(subj_name).ERDavg_feet(1:minLen_ERDfeet,:,:);
+            ERDhands_tot(:, :, :, i-1)   = subjects.(subj_name).ERDavg_hands(1:minLen_ERDhands,:,:);
+        end
+    end
+else
+    for i = 1:length(data)
+        subj_name = data(i);
+        ERDfeet_tot(:, :, :, i)    = subjects.(subj_name).ERDavg_feet(1:minLen_ERDfeet,:,:);
+        ERDhands_tot(:, :, :, i)   = subjects.(subj_name).ERDavg_hands(1:minLen_ERDhands,:,:);
+    end
+end
+
+% compute Grand Average
+ERDfeet_GA    = mean(ERDfeet_tot, 4);
+ERDhands_GA   = mean(ERDhands_tot, 4);
+
+
+figure(30)
+
+subplot(231)
+imagesc(t, f, ERDhands_GA(:, :, chns(1))')
+colormap hot
+colorbar
+% clim([-1.1, 1.7])
+name = char(subj_name);
+title(strcat('ERD avg both hands - C3 - ',name(1:3)))
+xlabel('Time [s]')
+ylabel('Frequency [Hz]')
+set(gca,'YDir','normal')
+
+subplot(232)
+imagesc(t, f, ERDhands_GA(:, :, chns(2))')
+colormap hot
+colorbar
+% clim([-1.1, 1.7])
+name = char(subj_name);
+title(strcat('ERD avg both hands - Cz - ',name(1:3)))
+xlabel('Time [s]')
+ylabel('Frequency [Hz]')
+set(gca,'YDir','normal')
+
+subplot(233)
+imagesc(t, f, ERDhands_GA(:, :, chns(3))')
+colormap hot
+colorbar
+% clim([-1.1, 1.7])
+name = char(subj_name);
+title(strcat('ERD avg both hands - C4 - ',name(1:3)))
+xlabel('Time [s]')
+ylabel('Frequency [Hz]')
+set(gca,'YDir','normal')
+
+subplot(234)
+imagesc(t, f, ERDfeet_GA(:, :, chns(1))')
+colormap hot
+colorbar
+% clim([-1.1, 1.7])
+name = char(subj_name);
+title(strcat('ERD avg both feet - C3 - ',name(1:3)))
+xlabel('Time [s]')
+ylabel('Frequency [Hz]')
+set(gca,'YDir','normal')
+
+subplot(235)
+imagesc(t, f, ERDfeet_GA(:, :, chns(2))')
+colormap hot
+colorbar
+% clim([-1.1, 1.7])
+name = char(subj_name);
+title(strcat('ERD avg both feet - Cz - ',name(1:3)))
+xlabel('Time [s]')
+ylabel('Frequency [Hz]')
+set(gca,'YDir','normal')
+
+subplot(236)
+imagesc(t, f, ERDfeet_GA(:, :, chns(3))')
+colormap hot
+colorbar
+% clim([-1.1, 1.7])
+name = char(subj_name);
+title(strcat('ERD avg both feet - C4 - ',name(1:3)))
+xlabel('Time [s]')
+ylabel('Frequency [Hz]')
+set(gca,'YDir','normal')
 
 
 %% Feature selection
