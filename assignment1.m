@@ -1102,3 +1102,150 @@ for i = 1:length(data)
     grid on
 
 end
+
+
+%% Accumulation framework for online data
+
+% (trial based accuracy)
+
+% Exponential accumulation framework
+alpha = 0.95; % smoothing parameter [0 1]
+
+for i = 1:length(data)
+    subj_name = data(i);
+    pp = subjects.(subj_name).pp;
+
+    % COME SCUSA
+    trials_windows = subjects.(subj_name).vectors_PSD.Tk(subjects.(subj_name).vectors_PSD.Ak > 0 | subjects.(subj_name).vectors_PSD.CFk > 0);
+    
+    nwindows = length(pp);
+    D = 0.5 * ones(nwindows, 2);
+    for wId = 2:nwindows
+        % Is the first sample of a new trial?
+        if trials_windows(wId) ~= trials_windows(wId-1)
+            % |- YES: Reset the current evidence (i.e., D(wId) to [0.5 0.5])
+            D(wId,:) = [0.5 0.5];
+        else 
+            % |- NO:  Keep integrating the value
+            D(wId,:) = D(wId - 1,:) * alpha + pp(wId,:) * (1 - alpha);
+        end
+    end
+    
+    % save results
+    subjects.(subj_name).D = D;
+
+end
+
+
+% DA ADATTARE
+
+%% Plot trial accuracy
+
+thr = [0.2 0.8];
+
+% posterior proabablity pp of trial 55
+% trial_number = randi(100, 1);
+sel_trial = 30;
+
+t_avg = zeros(1, length(data));
+
+for i = 1:length(data)
+    subj_name = data(i);
+
+    % salvare il tempo medio per raggiungere la threshold
+
+    trials_windows = subjects.(subj_name).vectors_PSD.Tk(subjects.(subj_name).vectors_PSD.Ak > 0 | subjects.(subj_name).vectors_PSD.CFk > 0);
+    pp = subjects.(subj_name).pp;
+    D = subjects.(subj_name).D;
+
+    pp_trial = pp(trials_windows == sel_trial,:);
+    D_trial = D(trials_windows == sel_trial,:); % integrated probability
+    samples = 1:length(pp_trial(:,2));
+
+    % figure
+    % hold on
+    % scatter(samples, pp_trial(:,2), 'k')
+    % plot(samples, D_trial(:,2), 'k', 'LineWidth', 2)
+    % title(['Trial ', num2str(sel_trial), ' - Class both hands'])
+    % xlabel('samples')
+    % ylabel('probability/control')
+    % legend('posterior probability', 'integrated probability', 'Location', 'best')
+    % yline(0.5, '--')
+    % yline(thr(1), 'k')
+    % yline(thr(2), 'k')
+    % ylim([0 1])
+    % xlim([1 samples(end)])
+
+    Gk_trial_all = zeros(max(trials_windows),1);
+
+    t_for_command = zeros(max(trials_windows),1);
+
+    % compute classification for succesful trials (no timeout)
+    for trial_number = 1 : max(trials_windows)
+        
+        
+        D_trial = D(trials_windows == trial_number,:);
+
+        t = zeros(1, length(D_trial));
+
+        for j = 1 : length(D_trial)
+            if D_trial(j) <= thr(1)
+                Gk_trial_all(trial_number) = 773; % trial classified as both hands
+                t(j) = j;
+                % breaks
+            end
+            if D_trial(j) >= thr(2)
+                Gk_trial_all(trial_number) = 771; % trial classified as both hands
+                t(j) = j;
+                % break
+                % contatore??????
+
+            end
+        end
+
+        if sum(t) > 0
+            t_for_command(trial_number) = find(t > 0, 1, "first");
+        end
+
+    end
+    t_avg(i) = mean(t_for_command(t_for_command > 0));
+
+    subjects.(subj_name).Gk_trial_all = Gk_trial_all;
+end
+
+% Dobbiamo trasformare in secondi
+t_avg = t_avg * 0.0625;
+
+
+%% Trial accuracy with and without rejection of time-out trials
+
+trial_accuracy_no_rejection = zeros(1, length(data));
+trial_accuracy_no_rejection_feet  = zeros(1, length(data));
+trial_accuracy_no_rejection_hands = zeros(1, length(data));
+
+for i = 1:length(data)
+    subj_name = data(i);
+
+    trials_windows = subjects.(subj_name).vectors_PSD.Tk(subjects.(subj_name).vectors_PSD.Ak > 0 | subjects.(subj_name).vectors_PSD.CFk > 0);
+    pp = subjects.(subj_name).pp;
+    D = subjects.(subj_name).D;
+
+    
+
+    Gk_trial_all = subjects.(subj_name).Gk_trial_all;
+
+    trial_accuracy_no_rejection(i) = mean(Gk_trial_all == subjects.(subj_name).vectors_PSD.Ck) * 100;
+    trial_accuracy_no_rejection_feet(i)  = mean(Gk_trial_all(subjects.(subj_name).vectors_PSD.Ck == 771) == subjects.(subj_name).vectors_PSD.Ck(subjects.(subj_name).vectors_PSD.Ck == 771)) * 100;
+    trial_accuracy_no_rejection_hands(i) = mean(Gk_trial_all(subjects.(subj_name).vectors_PSD.Ck == 773) == subjects.(subj_name).vectors_PSD.Ck(subjects.(subj_name).vectors_PSD.Ck == 773)) * 100;
+
+    accuracies = [trial_accuracy_no_rejection(i), trial_accuracy_no_rejection_feet(i), trial_accuracy_no_rejection_hands(i)];
+    x_labels = {'Overall', 'Both Hands', 'Both Feet'};
+    
+    figure()
+    bar(accuracies)
+    set(gca, 'xticklabel', x_labels)
+    ylabel('Accuracy [%]')
+    title('Trial accuracy on test set')
+    ylim([0, 100])
+    grid on
+end
