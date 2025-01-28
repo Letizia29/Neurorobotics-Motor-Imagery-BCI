@@ -31,6 +31,9 @@ data = [strcat("aj1",m),strcat("aj3",m),strcat("aj4",m),strcat("aj7",m),strcat("
 
 subjects = struct(); % where s and h data will be saved for each subject
 
+disp('Loading subjects data')
+
+
 for i = 1:length(data)
     subj_name = data(i);
 
@@ -96,44 +99,6 @@ for i = 1:length(data)
         end
     end
 end
-
-%% Remove trials related to artifacts
-
-pos_artifacts_run1 = subjects.ai7_micontinuous.offline1.h.EVENT.POS([57, 65]);
-pos_artifacts_run3 = subjects.ai7_micontinuous.offline3.h.EVENT.POS([37, 41]);
-
-num_artifacts_samples_run1 = pos_artifacts_run1(2) - pos_artifacts_run1(1);
-num_artifacts_samples_run3 = pos_artifacts_run3(2) - pos_artifacts_run3(1);
-
-pos_artifacts_run1(2) = pos_artifacts_run1(2) - 1;
-pos_artifacts_run3(2) = pos_artifacts_run3(2) - 1;
-
-subjects.ai7_micontinuous.offline1.s(pos_artifacts_run1(1) : pos_artifacts_run1(2), :) = [];
-subjects.ai7_micontinuous.offline3.s(pos_artifacts_run3(1) : pos_artifacts_run3(2), :) = [];
-
-subjects.ai7_micontinuous.offline1.h.EVENT.DUR(57:64) = [];
-subjects.ai7_micontinuous.offline1.h.EVENT.TYP(57:64) = [];
-subjects.ai7_micontinuous.offline1.h.EVENT.POS(65:end) = subjects.ai7_micontinuous.offline1.h.EVENT.POS(65:end) - num_artifacts_samples_run1;
-subjects.ai7_micontinuous.offline1.h.EVENT.POS(57:64) = [];
-
-subjects.ai7_micontinuous.offline3.h.EVENT.DUR(37:40) = [];
-subjects.ai7_micontinuous.offline3.h.EVENT.TYP(37:40) = [];
-subjects.ai7_micontinuous.offline3.h.EVENT.POS(41:end) = subjects.ai7_micontinuous.offline3.h.EVENT.POS(41:end) - num_artifacts_samples_run3;
-subjects.ai7_micontinuous.offline3.h.EVENT.POS(37:40) = [];
-
-%% Recompute PSD for subj 7
-
-[PSD1, h_PSD1, f1] = get_PSD(subjects.ai7_micontinuous.offline1.s, subjects.ai7_micontinuous.offline1.h);
-[PSD3, h_PSD3, f3] = get_PSD(subjects.ai7_micontinuous.offline3.s, subjects.ai7_micontinuous.offline3.h);
-
-subjects.ai7_micontinuous.offline1.PSD = PSD1;
-subjects.ai7_micontinuous.offline1.h_PSD = h_PSD1;
-subjects.ai7_micontinuous.offline1.f = f1;
-
-subjects.ai7_micontinuous.offline3.PSD = PSD3;
-subjects.ai7_micontinuous.offline3.h_PSD = h_PSD3;
-subjects.ai7_micontinuous.offline3.f = f3;
-
 %% Process the data through log band power computation and ERD/ERS
 
 % for each subject, concatenate the offline files, compute log band power
@@ -142,12 +107,17 @@ subjects.ai7_micontinuous.offline3.f = f3;
 % subjects
 % analize if some subjects are far from the avg
 
-sample_rate = 512; % Hz
+sample_rate = 512; % [Hz]
 
 
 %% Concatenate signals and events' types, positions, durations for each subject
 
+clc
+
 for i = 1:length(data)
+
+    disp(['Subject ', data{i}(1:3)])
+
     subj_name = data(i); % one subject
     runs_names = fieldnames(subjects.(subj_name)); % his runs
     subjects.(subj_name).s_c = [];
@@ -175,6 +145,8 @@ for i = 1:length(data)
     
 end
 
+clc
+disp('Done')
 
 %% Data processing
 
@@ -198,6 +170,9 @@ Wn_beta = 2*[W1 W2]/sample_rate;
 [b_beta, a_beta] = butter(n_beta, Wn_beta);
 
 for i = 1:length(data)
+
+    disp(['Processing subject ', data{i}(1:3), ' data'])
+
     subj_name = data(i); % one subject
     
     signal = subjects.(subj_name).s_c;
@@ -246,8 +221,8 @@ for i = 1:length(data)
     ntrials = length(startTrial);
     trial_length = min(stopTrial - startTrial);
 
-    Activity_mu = zeros(trial_length, size(sfilt_sq_ma_mu, 2), ntrials);      % [windows x frequencies x channels x trials]
-    Activity_beta = zeros(trial_length, size(sfilt_sq_ma_beta, 2), ntrials);      % [windows x frequencies x channels x trials]
+    Activity_mu = zeros(trial_length, size(sfilt_sq_ma_mu, 2), ntrials);          % [samples x channels x trials]
+    Activity_beta = zeros(trial_length, size(sfilt_sq_ma_beta, 2), ntrials);      % [samples x channels x trials]
 
     for trId = 1 : ntrials
         cstart = startTrial(trId);
@@ -273,6 +248,9 @@ for i = 1:length(data)
     
 
 end 
+
+clc
+disp('Done')
 
 
 %% Plot ERD/ERS on logBP
@@ -337,7 +315,11 @@ for i = 1:length(data)
     
 
     % time vector
+
+    % ????????
     T = 0.0627; % wshift
+
+    T = 1/sample_rate;
     t = 0:T:(length(ERD_logBP_mu_avg_feet)-1)*T;
 
     set(0,'CurrentFigure',ax1)
