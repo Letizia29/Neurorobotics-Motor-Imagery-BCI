@@ -7,7 +7,6 @@ clear
 close all
 clc
 
-
 % Paths
 
 % Custom functions folder path
@@ -32,6 +31,8 @@ data = [strcat("aj1",m),strcat("aj3",m),strcat("aj4",m),strcat("aj7",m),strcat("
 subjects = struct(); % where s and h data will be saved for each subject
 
 disp('Loading subjects data')
+
+tot_num_rem_trials = 0;
 
 
 for i = 1:length(data)
@@ -59,12 +60,18 @@ for i = 1:length(data)
                 count_off = count_off + 1;
                 field_name = strcat("offline",string(count_off));
 
-
-                [b, a] = butter(3, [3/(512/2), 49/(512/2)]);
+                % % Signal filtering
+                Wn1 = 3/(512/2);
+                Wn2 = 49/(512/2);
+                [b, a] = butter(3, [Wn1, Wn2]);
                 s = filtfilt(b, a, s);
 
                 % Remove artifacts
-                [s, h] = remArtifacts(s, h);
+                [s, h, numremtrials] = remArtifacts(s, h);
+
+                tot_num_rem_trials = tot_num_rem_trials + numremtrials;
+
+                disp(['N_trials removed from subj ', num2str(i), ' run ', num2str(j-2), ': ', num2str(numremtrials)])
 
                 % t = 0 : 1/512 : (size(s, 1) - 1)/512;
                 % figure()
@@ -98,6 +105,47 @@ for i = 1:length(data)
         end
     end
 end
+
+
+disp(['N_trials removed in total ', num2str(tot_num_rem_trials)])
+
+
+%% Remove trials related to artifacts
+% 
+% pos_artifacts_run1 = subjects.ai7_micontinuous.offline1.h.EVENT.POS([57, 65]);
+% pos_artifacts_run3 = subjects.ai7_micontinuous.offline3.h.EVENT.POS([37, 41]);
+% 
+% num_artifacts_samples_run1 = pos_artifacts_run1(2) - pos_artifacts_run1(1);
+% num_artifacts_samples_run3 = pos_artifacts_run3(2) - pos_artifacts_run3(1);
+% 
+% pos_artifacts_run1(2) = pos_artifacts_run1(2) - 1;
+% pos_artifacts_run3(2) = pos_artifacts_run3(2) - 1;
+% 
+% subjects.ai7_micontinuous.offline1.s(pos_artifacts_run1(1) : pos_artifacts_run1(2), :) = [];
+% subjects.ai7_micontinuous.offline3.s(pos_artifacts_run3(1) : pos_artifacts_run3(2), :) = [];
+% 
+% subjects.ai7_micontinuous.offline1.h.EVENT.DUR(57:64) = [];
+% subjects.ai7_micontinuous.offline1.h.EVENT.TYP(57:64) = [];
+% subjects.ai7_micontinuous.offline1.h.EVENT.POS(65:end) = subjects.ai7_micontinuous.offline1.h.EVENT.POS(65:end) - num_artifacts_samples_run1;
+% subjects.ai7_micontinuous.offline1.h.EVENT.POS(57:64) = [];
+% 
+% subjects.ai7_micontinuous.offline3.h.EVENT.DUR(37:40) = [];
+% subjects.ai7_micontinuous.offline3.h.EVENT.TYP(37:40) = [];
+% subjects.ai7_micontinuous.offline3.h.EVENT.POS(41:end) = subjects.ai7_micontinuous.offline3.h.EVENT.POS(41:end) - num_artifacts_samples_run3;
+% subjects.ai7_micontinuous.offline3.h.EVENT.POS(37:40) = [];
+% 
+% %% Recompute PSD for subj 7
+% 
+% [PSD1, h_PSD1, f1] = get_PSD(subjects.ai7_micontinuous.offline1.s, subjects.ai7_micontinuous.offline1.h);
+% [PSD3, h_PSD3, f3] = get_PSD(subjects.ai7_micontinuous.offline3.s, subjects.ai7_micontinuous.offline3.h);
+% 
+% subjects.ai7_micontinuous.offline1.PSD = PSD1;
+% subjects.ai7_micontinuous.offline1.h_PSD = h_PSD1;
+% subjects.ai7_micontinuous.offline1.f = f1;
+% 
+% subjects.ai7_micontinuous.offline3.PSD = PSD3;
+% subjects.ai7_micontinuous.offline3.h_PSD = h_PSD3;
+% subjects.ai7_micontinuous.offline3.f = f3;
 
 %% Process the data through log band power computation and ERD/ERS
 
@@ -325,10 +373,6 @@ for i = 1:length(data)
     
 
     % time vector
-
-    % ????????
-    T = 0.0627; % wshift
-
     T = 1/sample_rate;
     t = 0:T:(length(ERD_logBP_mu_avg_feet)-1)*T;
 
@@ -717,6 +761,99 @@ title('Activity - \beta band - both feet')
 colorbar
 clim([-20, 50])
 
+%% Statistical analysis NON MI CONVINCE
+
+% For each channel, frequency band and task, consider the statistical
+% difference between average and subject's logBP
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Vedere se fare una funzione
+
+% Results: if stat_diff_... == 0 allora il soggetto è simile alla media,
+% quindi dovrebbe essere rappresentativo. NON so se abbia senso.
+
+
+% HANDS MU
+isgaussian = zeros(1, length(data));
+isgaussian_avg_hands_mu = zeros(1, length(chns));
+stat_diff_mu_hands = zeros(length(chns), length(data));          % channels x subjects
+
+for ch = 1 : length(chns)       % For all the channels (C3, Cz, C4)
+    isgaussian_avg_hands_mu(ch) = ~lillietest(ERDmu_hands_GA(:, chns(ch)));
+
+    for i = 1:length(data)      % For all the subjects
+        subj_name = data(i);
+        isgaussian(i) = ~lillietest(ERDmu_hands_tot(:, chns(ch), i));
+        if isgaussian(i) && isgaussian_avg_hands_mu(ch)
+            stat_diff_mu_hands(i) = ttest2(zscore(ERDmu_hands_tot(:, chns(ch), i)), zscore(ERDmu_hands_GA(:, chns(ch))));
+        else
+            [~, stat_diff_mu_hands(i)] = ranksum(zscore(ERDmu_hands_tot(:, chns(ch), i)), zscore(ERDmu_hands_GA(:, chns(ch))));
+        end
+    end
+end
+
+
+% FEET MU
+isgaussian = zeros(1, length(data));
+isgaussian_avg_feet_mu = zeros(1, length(chns));
+stat_diff_mu_feet = zeros(length(chns), length(data));          % channels x subjects
+
+for ch = 1 : length(chns)       % For all the channels (C3, Cz, C4)
+    isgaussian_avg_feet_mu(ch) = ~lillietest(ERDmu_feet_GA(:, chns(ch)));
+
+    for i = 1:length(data)      % For all the subjects
+        subj_name = data(i);
+        isgaussian(i) = ~lillietest(ERDmu_feet_tot(:, chns(ch), i));
+        if isgaussian(i) && isgaussian_avg_feet_mu(ch)
+            stat_diff_mu_feet(i) = ttest2(ERDmu_feet_tot(:, chns(ch), i), ERDmu_feet_GA(:, chns(ch)));
+        else
+            [~, stat_diff_mu_feet(i)] = ranksum(ERDmu_feet_tot(:, chns(ch), i), ERDmu_feet_GA(:, chns(ch)));
+        end
+    end
+end
+
+
+
+% HANDS BETA
+
+isgaussian = zeros(1, length(data));
+isgaussian_avg_hands_beta = zeros(1, length(chns));
+stat_diff_beta_hands = zeros(length(chns), length(data));          % channels x subjects
+
+for ch = 1 : length(chns)       % For all the channels (C3, Cz, C4)
+    isgaussian_avg_hands_beta(ch) = ~lillietest(ERDbeta_hands_GA(:, chns(ch)));
+
+    for i = 1:length(data)      % For all the subjects
+        subj_name = data(i);
+        isgaussian(i) = ~lillietest(ERDbeta_hands_tot(:, chns(ch), i));
+        if isgaussian(i) && isgaussian_avg_hands_beta(ch)
+            stat_diff_beta_hands(i) = ttest2(ERDbeta_hands_tot(:, chns(ch), i), ERDbeta_hands_GA(:, chns(ch)));
+        else
+            [~, stat_diff_beta_hands(i)] = ranksum(ERDbeta_hands_tot(:, chns(ch), i), ERDbeta_hands_GA(:, chns(ch)));
+        end
+    end
+end
+
+% FEET BETA
+isgaussian = zeros(1, length(data));
+isgaussian_avg_feet_beta = zeros(1, length(chns));
+stat_diff_beta_feet = zeros(length(chns), length(data));          % channels x subjects
+
+for ch = 1 : length(chns)       % For all the channels (C3, Cz, C4)
+    isgaussian_avg_feet_beta(ch) = ~lillietest(ERDbeta_feet_GA(:, chns(ch)));
+
+    for i = 1:length(data)      % For all the subjects
+        subj_name = data(i);
+        isgaussian(i) = ~lillietest(ERDbeta_feet_tot(:, chns(ch), i));
+        if isgaussian(i) && isgaussian_avg_feet_beta(ch)
+            stat_diff_beta_feet(i) = ttest2(ERDbeta_feet_tot(:, chns(ch), i), ERDbeta_feet_GA(:, chns(ch)));
+        else
+            [~, stat_diff_beta_feet(i)] = ranksum(ERDbeta_feet_tot(:, chns(ch), i), ERDbeta_feet_GA(:, chns(ch)));
+        end
+    end
+end
+
+stat_diff_subj = stat_diff_beta_feet | stat_diff_beta_hands | stat_diff_mu_feet | stat_diff_mu_hands;
+
 
 %% ERD/ERS Spectrogram
 
@@ -858,9 +995,6 @@ for i = 1:length(data)
     ERDavg_feet  = mean(ERD(:, :, :, subjects.(subj_name).vectors_PSD.Ck == 771), 4);
     ERDavg_hands = mean(ERD(:, :, :, subjects.(subj_name).vectors_PSD.Ck == 773), 4);
 
-    subjects.(subj_name).ERDavg_feet = ERDavg_feet;
-    subjects.(subj_name).ERDavg_hands = ERDavg_hands;
-
 
     % Visualization
     
@@ -946,12 +1080,6 @@ for i = 1:length(data)
 
 end
 
-%% GRAND AVERAGE
-% for ERS/ERS on PSD
-
-% adjust different lengths
-minLen_ERDfeet    = inf;
-minLen_ERDhands   = inf;
 
 for i = 1:length(data)
     subj_name = data(i);
@@ -1064,14 +1192,79 @@ ylabel('Frequency [Hz]')
 set(gca,'YDir','normal')
 
 
-%% Feature selection
 
-% NB: SI PUO' METTERE NEL CICLO PRIMA MA PER CHIAREZZA LO FACCIO FUORI. POI
-% IN CASO BASTA UNIRLI.
+%% Feature maps PER OGNI RUN DI OGNI SUBJECT
 
 channels = {"Fz", "FC3", "FC1", "FCz", "FC2", "FC4", "C3", "C1", "Cz", "C2", "C4", "CP3", "CP1", "CPz", "CP2", "CP4"};
 
-ax0 = figure(16);
+for i = 1:length(data)
+    subj_name = data(i);
+
+    % load runs
+    runs = dir(fullfile(pwd, strcat("Data/", subj_name)));
+    runs_names = {runs.name};
+    
+    count_off = 0;
+    for j = 1:length(runs_names)
+        run_name = runs_names{j};
+        if run_name(1) == 'a' % actual run
+
+            % save data
+            % offline run
+            if run_name(21:27) == 'offline'
+                count_off = count_off + 1;
+                field_name = strcat("offline",string(count_off));
+
+                PSD = subjects.(subj_name).(field_name).PSD;
+                h_PSD = subjects.(subj_name).(field_name).h_PSD;
+                h_PSD.TYP = subjects.(subj_name).(field_name).h.EVENT.TYP;      % Add TYP field
+
+                % Calculate the label vectors
+                tmpVecs = labelVecs(PSD, h_PSD);
+
+                wnds_CktoCFk = log(PSD(tmpVecs.Ak > 0 | tmpVecs.CFk > 0, :, :));
+                features = reshape(wnds_CktoCFk, [size(wnds_CktoCFk, 1), size(wnds_CktoCFk, 2) * size(wnds_CktoCFk, 3)]);
+
+                idx = tmpVecs.Ak + tmpVecs.CFk;                 % Vector containing 771, 773 or 781
+                idx = idx(idx > 0);
+                class = (idx < 781) .* idx;                     % Vector containing the class for each window
+
+                for cl = 2 : length(idx)
+                    if class(cl-1) > 0 && class(cl) == 0        % If the current class is 0, then
+                        class(cl) = class(cl-1);                % the value is updated according
+                    end                                         % to the previous state.
+                end
+
+                % Fisher score computation
+                FS = abs(mean(features(class == 771, :), 1) - mean(features(class == 773, :), 1))./sqrt(std(features(class == 771, :), 1).^2 + std(features(class == 773, :), 1).^2);
+
+                hf.Name = ['Subject ', num2str(i), ' run ', num2str(j)];
+                hf.NumberTitle = 'off';
+                title(['Subject ', num2str(i), ' run ', num2str(j)])
+                imagesc(f, 1:16, flipud(imrotate(reshape(FS, [23, 16]), 90)))
+                xticks(f)
+                xtickangle(90)
+                xlabel("Hz")
+                set(gca,'YTick', 1:16)
+                set(gca,'yticklabel',(channels))
+                ylabel("Channel")
+                hold on
+
+                [row_feat, col_feat] = find(ismember(reshape(FS, [23, 16]), maxk(FS, 3)));      % Indeces of the 3 most discriminative features
+
+                plot(f(row_feat), col_feat, 'ro', 'MarkerSize', 10, 'LineWidth', 2)             % Circle the most discriminative features
+                hold off
+
+            end
+        end
+    end
+end
+
+%% Feature selection
+
+channels = {"Fz", "FC3", "FC1", "FCz", "FC2", "FC4", "C3", "C1", "Cz", "C2", "C4", "CP3", "CP1", "CPz", "CP2", "CP4"};
+
+ax0 = figure();
 
 for i = 1:length(data)
     subj_name = data(i);
@@ -1194,6 +1387,8 @@ for i = 1:length(data)
     % Model prediction
     [Gk, pp] = predict(mdl, subjects.(subj_name).train_set);
 
+    subjects.(subj_name).pp = pp;
+
     y = subjects.(subj_name).class;
 
     % Calculate the total accuracy (correct predictions over total predictions)
@@ -1223,8 +1418,7 @@ for i = 1:length(data)
 
 end
 
-
-%% Accumulation framework for online data
+%% Accumulation framework for offline data
 
 % (trial based accuracy)
 
@@ -1261,7 +1455,7 @@ end
 
 %% Plot trial accuracy
 
-thr = [0.2 0.8];
+thr = [0.3 0.7];
 
 % posterior proabablity pp of trial 55
 % trial_number = randi(100, 1);
@@ -1350,8 +1544,6 @@ for i = 1:length(data)
     pp = subjects.(subj_name).pp;
     D = subjects.(subj_name).D;
 
-    
-
     Gk_trial_all = subjects.(subj_name).Gk_trial_all;
 
     trial_accuracy_no_rejection(i) = mean(Gk_trial_all == subjects.(subj_name).vectors_PSD.Ck) * 100;
@@ -1369,3 +1561,4 @@ for i = 1:length(data)
     ylim([0, 100])
     grid on
 end
+
