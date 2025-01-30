@@ -16,29 +16,35 @@ addpath(fullfile(pwd, "functions/"))
 addpath(fullfile(pwd, "Toolboxes\biosig\biosig\t200_FileAccess/"))
 addpath(fullfile(pwd, "Toolboxes\biosig\biosig\t250_ArtifactPreProcessingQualityControl/"))
 
+% Data path
 addpath(genpath(fullfile(pwd, "Data/")))
+
+% Add custom path to EEGLAB
+
+
+%% Data loading and PSD computation
 
 % Loading Laplacian Mask
 load('laplacian16.mat');
 
-%% Data loading and PSD computation
-% for each subject, loading of each run, application of Laplacian filter
-% and PSD computation, with consequent events re-computing
+% For each subject, loading of each run, application of Laplacian filter,
+% artifacts removal and PSD computation, events re-computation
 
 m = "_micontinuous";
 data = [strcat("aj1",m),strcat("aj3",m),strcat("aj4",m),strcat("aj7",m),strcat("aj9",m),strcat("ai6",m),strcat("ai7",m),strcat("ai8",m)];
 
-subjects = struct(); % where s and h data will be saved for each subject
+% Initialize struct to save subjects' data
+subjects = struct(); 
 
 disp('Loading subjects data')
 
+% Count the number of removed artifacts
 tot_num_rem_trials = 0;
-
 
 for i = 1:length(data)
     subj_name = data(i);
 
-    % load runs
+    % Load runs
     runs = dir(fullfile(pwd, strcat("Data/", subj_name)));
     runs_names = {runs.name};
     
@@ -46,21 +52,21 @@ for i = 1:length(data)
     count_on = 0;
     for j = 1:length(runs_names)
         run_name = runs_names{j};
-        if run_name(1) == 'a' % actual run
+        if run_name(1) == 'a'       % Run
 
-            % load data
+            % Load data
             [s, h] = sload(run_name);
 
             % Laplacian masking (pre-processing)
             s = s(:,1:16)*lap;
 
-            % save data
+            % Save data
             % offline run
             if run_name(21:27) == 'offline'
                 count_off = count_off + 1;
                 field_name = strcat("offline",string(count_off));
 
-                % % Signal filtering
+                % Signal filtering
                 Wn1 = 3/(512/2);
                 Wn2 = 49/(512/2);
                 [b, a] = butter(3, [Wn1, Wn2]);
@@ -69,15 +75,17 @@ for i = 1:length(data)
                 % Remove artifacts
                 [s, h, numremtrials] = remArtifacts(s, h);
 
+                % Update counter
                 tot_num_rem_trials = tot_num_rem_trials + numremtrials;
 
-                disp(['N_trials removed from subj ', num2str(i), ' run ', num2str(j-2), ': ', num2str(numremtrials)])
+                disp(['N_trials removed from subj ', data{i}(1:3), ' run ', num2str(j-2), ': ', num2str(numremtrials)])
 
                 % t = 0 : 1/512 : (size(s, 1) - 1)/512;
                 % figure()
                 % plot(t, s)
                 % title(['subj ', num2str(i), ' run ', num2str(j-2)])
 
+                % Save information for each run
                 subjects.(subj_name).(field_name).s = s;
                 subjects.(subj_name).(field_name).h = h;
 
@@ -88,10 +96,13 @@ for i = 1:length(data)
                 subjects.(subj_name).(field_name).h_PSD = h_PSD;
                 subjects.(subj_name).(field_name).f = f;
             end
+
             % online run
             if run_name(21:26) == 'online'
                 count_on = count_on + 1;
                 field_name = strcat("online",string(count_on));
+
+                % Save information for each run
                 subjects.(subj_name).(field_name).s = s;
                 subjects.(subj_name).(field_name).h = h;
 
@@ -106,9 +117,7 @@ for i = 1:length(data)
     end
 end
 
-
 disp(['N_trials removed in total ', num2str(tot_num_rem_trials)])
-
 
 %% Remove trials related to artifacts
 % 
@@ -166,8 +175,10 @@ for i = 1:length(data)
 
     disp(['Subject ', data{i}(1:3)])
 
-    subj_name = data(i); % one subject
-    runs_names = fieldnames(subjects.(subj_name)); % his runs
+    subj_name = data(i);                                % Subject
+    runs_names = fieldnames(subjects.(subj_name));      % Runs
+
+    % Initialize structure fields
     subjects.(subj_name).s_c = [];
     POS = [];
     DUR = [];
@@ -175,14 +186,15 @@ for i = 1:length(data)
 
     for j = 1:length(runs_names)
         
-        if runs_names{j}(1:7) == 'offline'  
+        if runs_names{j}(1:7) == 'offline'
+
+            % Concatenation of the offline runs for each subject
             DUR = [DUR; subjects.(subj_name).(runs_names{j}).h.EVENT.DUR];
             TYP = [TYP; subjects.(subj_name).(runs_names{j}).h.EVENT.TYP];
             POS = [POS; subjects.(subj_name).(runs_names{j}).h.EVENT.POS + length(subjects.(subj_name).s_c)];
             subjects.(subj_name).s_c = [subjects.(subj_name).s_c; subjects.(subj_name).(runs_names{j}).s];
         
         end
-
     end
 
     subjects.(subj_name).h.POS = POS;
@@ -190,7 +202,6 @@ for i = 1:length(data)
     subjects.(subj_name).h.TYP = TYP;
 
     subjects.(subj_name).vectors = labelVecs(subjects.(subj_name).s_c, subjects.(subj_name).h);
-    
 end
 
 clc
@@ -198,25 +209,25 @@ disp('Done')
 
 %% Data processing
 
-% FILTERING
 % Butterworth filters
-n_mu = 4; % filter order
+n_mu = 4;               % Filter order
 n_beta = 4;
 
 % mu band
-W1 = 8; % Hz
-W2 = 12; % Hz
+W1 = 8;                 % [Hz]
+W2 = 12;                % [Hz]
 Wn_mu = 2*[W1 W2]/sample_rate;
 
 % beta band
-W1 = 16; % Hz
-W2 = 24; % Hz
+W1 = 16;                % [Hz]
+W2 = 24;                % [Hz]
 Wn_beta = 2*[W1 W2]/sample_rate;
 
-% filter coefficients
+% Filter coefficients
 [b_mu, a_mu] = butter(n_mu, Wn_mu);
 [b_beta, a_beta] = butter(n_beta, Wn_beta);
 
+% Store starting time information for Cue and Continuous Feedback
 starting_time_cue = zeros(length(data), 1);
 starting_time_cf  = zeros(length(data), 1);
 
@@ -224,31 +235,31 @@ for i = 1:length(data)
 
     disp(['Processing subject ', data{i}(1:3), ' data'])
 
-    subj_name = data(i); % one subject
+    subj_name = data(i);
     
+    % Initialize data structures
     signal = subjects.(subj_name).s_c;
     sfilt_mu = zeros(size(signal));
     sfilt_beta = zeros(size(signal));
     sfilt_sq_mu = zeros(size(signal));
     sfilt_sq_beta = zeros(size(signal));
 
-
     for channel = 1:16
-        % filter the signal
-        sfilt_mu(:, channel) = filtfilt(b_mu, a_mu, signal(:, channel));
+        % Filter the signal
+        sfilt_mu(:, channel)   = filtfilt(b_mu, a_mu, signal(:, channel));
         sfilt_beta(:, channel) = filtfilt(b_beta, a_beta, signal(:, channel));
     
-        % Rectifying the signal (squaring)
-        sfilt_sq_mu(:, channel) = sfilt_mu(:, channel).^2;
+        % Rectify the signal (squaring)
+        sfilt_sq_mu(:, channel)   = sfilt_mu(:, channel).^2;
         sfilt_sq_beta(:, channel) = sfilt_beta(:, channel).^2; 
     end
     
     % Applying moving average (1-second window)
-    LengthWin = 1; % second
+    LengthWin = 1;          % [s]
     % as FIR filter
     A = 1;
     B = ones(1, LengthWin*sample_rate)/LengthWin/sample_rate;
-    % filter the signal
+    % Apply the filter
     sfilt_sq_ma_mu = filter(B, A, sfilt_sq_mu);
     sfilt_sq_ma_beta = filter(B, A, sfilt_sq_beta);
     
@@ -257,7 +268,7 @@ for i = 1:length(data)
     logBP_mu = log(sfilt_sq_ma_mu);
     logBP_beta = log(sfilt_sq_ma_beta);
 
-    % save results
+    % Save results
     subjects.(subj_name).logBP_mu = logBP_mu;
     subjects.(subj_name).logBP_beta = logBP_beta;
     
@@ -301,19 +312,18 @@ for i = 1:length(data)
     Reference_mu = repmat(mean(FixData_mu), [size(Activity_mu, 1) 1 1]);
     Reference_beta = repmat(mean(FixData_beta), [size(Activity_beta, 1) 1 1]);
 
+    % Calculate and store ERD_logBP values
     subjects.(subj_name).ERD_logBP_mu = 100 * (Activity_mu - Reference_mu) ./ Reference_mu;
     subjects.(subj_name).ERD_logBP_beta = 100 * (Activity_beta - Reference_beta) ./ Reference_beta;
-    
 
 end 
 
 clc
 disp('Done')
 
-
 %% Plot ERD/ERS on logBP
 
-% significant channels (C3, Cz, C4)
+% Significant channels (C3, Cz, C4)
 chns = [7, 9, 11];
 
 ax1 = figure(1); 
@@ -349,19 +359,20 @@ hold off
 for i = 1:length(data)
     subj_name = data(i);
 
+    % Separate the classes for each frequency band
     ERDmu_feet    = subjects.(subj_name).ERD_logBP_mu(:, :, subjects.(subj_name).vectors.Ck == 771);
     ERDmu_hands   = subjects.(subj_name).ERD_logBP_mu(:, :, subjects.(subj_name).vectors.Ck == 773);
     ERDbeta_feet  = subjects.(subj_name).ERD_logBP_beta(:, :, subjects.(subj_name).vectors.Ck == 771);
     ERDbeta_hands = subjects.(subj_name).ERD_logBP_beta(:, :, subjects.(subj_name).vectors.Ck == 773);
 
-    % average ERD/ERS
+    % Average ERD/ERS
     ERD_logBP_mu_avg_feet  = mean(ERDmu_feet, 3);
     ERD_logBP_mu_avg_hands = mean(ERDmu_hands, 3);
 
     ERD_logBP_beta_avg_feet  = mean(ERDbeta_feet, 3);
     ERD_logBP_beta_avg_hands = mean(ERDbeta_hands, 3);
 
-    % standard deviation
+    % Standard error
     ERD_logBP_mu_SE_feet  = std(ERDmu_feet, 0, 3)./sqrt(length(ERDmu_feet(1,1,:)));
     ERD_logBP_mu_SE_hands = std(ERDmu_hands, 0, 3)./sqrt(length(ERDmu_hands(1,1,:)));
 
@@ -370,11 +381,10 @@ for i = 1:length(data)
 
 
     % Visualization
-    
 
-    % time vector
-    T = 1/sample_rate;
-    t = 0:T:(length(ERD_logBP_mu_avg_feet)-1)*T;
+    % Time vector
+    T = 1/sample_rate;                              % [s]
+    t = 0:T:(length(ERD_logBP_mu_avg_feet)-1)*T;    % [s]
 
     set(0,'CurrentFigure',ax1)
     subplot(2, 4, mod(i-1, 8)+1)
@@ -538,10 +548,9 @@ end
 %
 
 
-%% GRAND AVERAGE 
-% for ERD on logarithmic band power (except sub 7)
+%% Grand average for ERD on logarithmic band power
 
-% adjust different lengths
+% Adjust different lengths
 minLen_ERDmu_feet    = inf;
 minLen_ERDmu_hands   = inf;
 minLen_ERDbeta_feet  = inf;
@@ -563,58 +572,37 @@ for i = 1:length(data)
     end
 end
 
-% save data from all subjects
-ERDmu_feet_tot    = zeros(minLen_ERDmu_feet, 16, length(data)-1);
-ERDmu_hands_tot   = zeros(minLen_ERDmu_hands, 16, length(data)-1);
-ERDbeta_feet_tot  = zeros(minLen_ERDbeta_feet, 16, length(data)-1);
-ERDbeta_hands_tot = zeros(minLen_ERDbeta_hands, 16, length(data)-1);
+% Save data from all subjects
+ERDmu_feet_tot    = zeros(minLen_ERDmu_feet, 16, length(data));
+ERDmu_hands_tot   = zeros(minLen_ERDmu_hands, 16, length(data));
+ERDbeta_feet_tot  = zeros(minLen_ERDbeta_feet, 16, length(data));
+ERDbeta_hands_tot = zeros(minLen_ERDbeta_hands, 16, length(data));
 
-remove_sub7 = 0;
+for i = 1:length(data)
+    subj_name = data(i);
+    ERDmu_feet_tot(:, :, i)    = subjects.(subj_name).ERD_logBP_mu_avg_feet(1:minLen_ERDmu_feet,:);
+    ERDmu_hands_tot(:, :, i)   = subjects.(subj_name).ERD_logBP_mu_avg_hands(1:minLen_ERDmu_hands,:);
+    ERDbeta_feet_tot(:, :, i)  = subjects.(subj_name).ERD_logBP_beta_avg_feet(1:minLen_ERDbeta_feet,:);
+    ERDbeta_hands_tot(:, :, i) = subjects.(subj_name).ERD_logBP_beta_avg_hands(1:minLen_ERDbeta_hands,:);
 
-if remove_sub7 == 1
-
-    for i = 1:length(data)
-        subj_name = data(i);
-        if i < 7 % remove subject 7
-            ERDmu_feet_tot(:, :, i)    = subjects.(subj_name).ERD_logBP_mu_avg_feet(1:minLen_ERDmu_feet,:);
-            ERDmu_hands_tot(:, :, i)   = subjects.(subj_name).ERD_logBP_mu_avg_hands(1:minLen_ERDmu_hands,:);
-            ERDbeta_feet_tot(:, :, i)  = subjects.(subj_name).ERD_logBP_beta_avg_feet(1:minLen_ERDbeta_feet,:);
-            ERDbeta_hands_tot(:, :, i) = subjects.(subj_name).ERD_logBP_beta_avg_hands(1:minLen_ERDbeta_hands,:);
-        end
-        if i == 8
-            ERDmu_feet_tot(:, :, i-1)    = subjects.(subj_name).ERD_logBP_mu_avg_feet(1:minLen_ERDmu_feet,:);
-            ERDmu_hands_tot(:, :, i-1)   = subjects.(subj_name).ERD_logBP_mu_avg_hands(1:minLen_ERDmu_hands,:);
-            ERDbeta_feet_tot(:, :, i-1)  = subjects.(subj_name).ERD_logBP_beta_avg_feet(1:minLen_ERDbeta_feet,:);
-            ERDbeta_hands_tot(:, :, i-1) = subjects.(subj_name).ERD_logBP_beta_avg_hands(1:minLen_ERDbeta_hands,:);
-        end
-    end
-else
-    for i = 1:length(data)
-        subj_name = data(i);
-        ERDmu_feet_tot(:, :, i)    = subjects.(subj_name).ERD_logBP_mu_avg_feet(1:minLen_ERDmu_feet,:);
-        ERDmu_hands_tot(:, :, i)   = subjects.(subj_name).ERD_logBP_mu_avg_hands(1:minLen_ERDmu_hands,:);
-        ERDbeta_feet_tot(:, :, i)  = subjects.(subj_name).ERD_logBP_beta_avg_feet(1:minLen_ERDbeta_feet,:);
-        ERDbeta_hands_tot(:, :, i) = subjects.(subj_name).ERD_logBP_beta_avg_hands(1:minLen_ERDbeta_hands,:);
-
-    end
 end
 
-% compute Grand Average
+% Compute Grand Average for all subjects
 ERDmu_feet_GA    = mean(ERDmu_feet_tot, 3);
 ERDmu_hands_GA   = mean(ERDmu_hands_tot, 3);
 ERDbeta_feet_GA  = mean(ERDbeta_feet_tot, 3);
 ERDbeta_hands_GA = mean(ERDbeta_hands_tot, 3);
 
+% Compute standard error
 ERDmu_feet_SE    = std(ERDmu_feet_tot, 0, 3)./sqrt(length(ERDmu_feet_tot(1, 1, :)));
 ERDmu_hands_SE   = std(ERDmu_hands_tot, 0, 3)./sqrt(length(ERDmu_hands_tot(1, 1, :)));
 ERDbeta_feet_SE  = std(ERDbeta_feet_tot, 0, 3)./sqrt(length(ERDbeta_feet_tot(1, 1, :)));
 ERDbeta_hands_SE = std(ERDbeta_hands_tot, 0, 3)./sqrt(length(ERDbeta_hands_tot(1, 1, :)));
 
 % GA temporal plots
-figure(7)
-% time axis 
-T = 1/sample_rate;
-t = 0:T:(length(ERDmu_feet_GA(:,1,1))-1)*T;
+figure;
+T = 1/sample_rate;                              % [s]
+t = 0:T:(length(ERDmu_feet_GA(:,1,1))-1)*T;     % [s]
 
 subplot(231), hold on
 plot(t, ERDmu_feet_GA(:, chns(1)), 'g')
@@ -703,7 +691,7 @@ hold off
 
 % Topographic plots
 load('chanlocs16.mat');
-len = min(h.DUR(h.TYP == 786)); % presa dall'ultima h salvata giusto per fare un prova
+len = min(h.DUR(h.TYP == 786));
 
 % mu band
 ERD_Ref_773 = mean(ERDmu_hands_GA(1:len, :), 1);
@@ -711,7 +699,7 @@ ERD_Act_773 = mean(ERDmu_hands_GA(len+1:end, :), 1);
 ERD_Ref_771 = mean(ERDmu_feet_GA(1:len, :), 1);
 ERD_Act_771 = mean(ERDmu_feet_GA(len+1:end, :), 1);
 
-figure(8);
+figure;
 subplot(221)
 topoplot(squeeze(ERD_Ref_773), chanlocs16);
 title('Reference - \mu band - both hands')
@@ -739,7 +727,7 @@ ERD_Act_773 = mean(ERDbeta_hands_GA(len+1:end, :), 1);
 ERD_Ref_771 = mean(ERDbeta_feet_GA(1:len, :), 1);
 ERD_Act_771 = mean(ERDbeta_feet_GA(len+1:end, :), 1);
 
-figure(9);
+figure;
 subplot(221)
 topoplot(squeeze(ERD_Ref_773), chanlocs16);
 title('Reference - \beta band - both hands')
@@ -760,6 +748,7 @@ topoplot(squeeze(ERD_Act_771), chanlocs16);
 title('Activity - \beta band - both feet')
 colorbar
 clim([-20, 50])
+
 
 %% Statistical analysis NON MI CONVINCE
 
@@ -855,9 +844,9 @@ end
 stat_diff_subj = stat_diff_beta_feet | stat_diff_beta_hands | stat_diff_mu_feet | stat_diff_mu_hands;
 
 
-%% ERD/ERS Spectrogram
+%% ERD/ERS on spectrogram
 
-%% Concatenate the files
+% Concatenate the files
 
 for i = 1:length(data)
 
@@ -865,6 +854,8 @@ for i = 1:length(data)
 
     subj_name = data(i);
     runs_names = fieldnames(subjects.(subj_name));
+
+    % Initialize structure fields
     subjects.(subj_name).PSD_c = [];
     POS = [];
     DUR = [];
@@ -882,6 +873,7 @@ for i = 1:length(data)
 
     end
 
+    % Save information
     subjects.(subj_name).h_PSD.POS = POS;
     subjects.(subj_name).h_PSD.DUR = DUR;
     subjects.(subj_name).h_PSD.TYP = subjects.(subj_name).h.TYP;
@@ -889,8 +881,8 @@ for i = 1:length(data)
     subjects.(subj_name).vectors_PSD = labelVecs(subjects.(subj_name).PSD_c, subjects.(subj_name).h_PSD);
 
     % Concatenation of the PSD for the online files
-
     subjects.(subj_name).PSD_c_online = [];
+    TYP = [];
     POS = [];
     DUR = [];
 
@@ -898,6 +890,7 @@ for i = 1:length(data)
 
         if contains(runs_names{j}, 'online', 'IgnoreCase', true)
 
+            TYP = [TYP; subjects.(subj_name).(runs_names{j}).h_PSD.TYP];
             DUR = [DUR; subjects.(subj_name).(runs_names{j}).h_PSD.DUR];
             POS = [POS; subjects.(subj_name).(runs_names{j}).h_PSD.POS + length(subjects.(subj_name).PSD_c_online)];
 
@@ -908,7 +901,7 @@ for i = 1:length(data)
 
     subjects.(subj_name).h_PSD_online.POS = POS;
     subjects.(subj_name).h_PSD_online.DUR = DUR;
-    subjects.(subj_name).h_PSD_online.TYP = subjects.(subj_name).h.TYP;
+    subjects.(subj_name).h_PSD_online.TYP = TYP;
 
     subjects.(subj_name).vectors_PSD_online = labelVecs(subjects.(subj_name).PSD_c_online, subjects.(subj_name).h_PSD_online);
     
@@ -952,11 +945,11 @@ for i = 1:length(data)
 
     subjects.(subj_name).ERD = [];
 
-    % Store the values in temp variables
+    % Store the values in temporary variables
     h_PSD = subjects.(subj_name).h_PSD;
     PSD_c = subjects.(subj_name).PSD_c;
 
-    % Get the starting position of the trials
+    % Get the starting and ending positions of the trials
     startTrial = h_PSD.POS(h_PSD.TYP == 786);
     stopTrial  = h_PSD.POS(h_PSD.TYP == 781) + h_PSD.DUR(h_PSD.TYP == 781);
 
@@ -964,6 +957,7 @@ for i = 1:length(data)
     ntrials = length(startTrial);
     trial_length = min(stopTrial - startTrial);
 
+    % Initialize data strucure
     Activity = zeros(trial_length, size(PSD_c, 2), size(PSD_c, 3), ntrials);      % [windows x frequencies x channels x trials]
 
     for trId = 1 : ntrials
@@ -988,23 +982,19 @@ for i = 1:length(data)
     
     subjects.(subj_name).ERD_PSD = ERD;
 
-    % ho aggiunto la definizione di Ck dentro labelVecs, perché l'ho usato anche sopra,
-    % si può prendere da là direttamente
-    % Ck = h_PSD.TYP(h_PSD.TYP == 771 | h_PSD.TYP == 773);
-
     ERDavg_feet  = mean(ERD(:, :, :, subjects.(subj_name).vectors_PSD.Ck == 771), 4);
     ERDavg_hands = mean(ERD(:, :, :, subjects.(subj_name).vectors_PSD.Ck == 773), 4);
 
+    subjects.(subj_name).ERDavg_feet  = ERDavg_feet;
+    subjects.(subj_name).ERDavg_hands = ERDavg_hands;
 
     % Visualization
     
     % frequency vector
-    f = subjects.(subj_name).(runs_names{1}).f;
+    f = subjects.(subj_name).(runs_names{1}).f;     % [Hz]
     % time vector
-    T = 0.0627; % wshift
-    t = 0:T:length(ERDavg_hands)*T;
-
-    % FARE QUALCOSA SU QUESTE OSCENITA'
+    T = 0.0627;                                     % wshift, [s]
+    t = 0:T:length(ERDavg_hands)*T;                 % [s]
 
     set(0,'CurrentFigure',ax1)
     subplot(2, 4, mod(i-1, 8)+1)
@@ -1080,6 +1070,11 @@ for i = 1:length(data)
 
 end
 
+%% Grand average ERD/ERS on PSD of all subjects
+
+% Adjust different lengths
+minLen_ERDfeet    = inf;
+minLen_ERDhands   = inf;
 
 for i = 1:length(data)
     subj_name = data(i);
@@ -1091,47 +1086,30 @@ for i = 1:length(data)
     end
 end
 
-% save data from all subjects
-ERDfeet_tot    = zeros(minLen_ERDfeet, 23, 16, length(data)-1);
-ERDhands_tot   = zeros(minLen_ERDhands, 23, 16, length(data)-1);
+% Save data from all subjects
+ERDfeet_tot  = zeros(minLen_ERDfeet, length(f), length(channels), length(data));
+ERDhands_tot = zeros(minLen_ERDhands, length(f), length(channels), length(data));
 
-remove_sub7 = 0;
 
-if remove_sub7 == 1
 
-    for i = 1:length(data)
-        subj_name = data(i);
-        if i < 7 % remove subject 7
-            ERDfeet_tot(:, :, :, i)    = subjects.(subj_name).ERDavg_feet(1:minLen_ERDfeet,:,:);
-            ERDhands_tot(:, :, :, i)   = subjects.(subj_name).ERDavg_hands(1:minLen_ERDhands,:,:);
-        end
-        if i == 8
-            ERDfeet_tot(:, :, :, i-1)    = subjects.(subj_name).ERDavg_feet(1:minLen_ERDfeet,:,:);
-            ERDhands_tot(:, :, :, i-1)   = subjects.(subj_name).ERDavg_hands(1:minLen_ERDhands,:,:);
-        end
-    end
-else
-    for i = 1:length(data)
-        subj_name = data(i);
-        ERDfeet_tot(:, :, :, i)    = subjects.(subj_name).ERDavg_feet(1:minLen_ERDfeet,:,:);
-        ERDhands_tot(:, :, :, i)   = subjects.(subj_name).ERDavg_hands(1:minLen_ERDhands,:,:);
-    end
+for i = 1:length(data)
+    subj_name = data(i);
+    ERDfeet_tot(:, :, :, i)    = subjects.(subj_name).ERDavg_feet(1:minLen_ERDfeet,:,:);
+    ERDhands_tot(:, :, :, i)   = subjects.(subj_name).ERDavg_hands(1:minLen_ERDhands,:,:);
 end
 
-% compute Grand Average
-ERDfeet_GA    = mean(ERDfeet_tot, 4);
-ERDhands_GA   = mean(ERDhands_tot, 4);
+% Compute Grand Average for all subjects
+ERDfeet_GA  = mean(ERDfeet_tot, 4);
+ERDhands_GA = mean(ERDhands_tot, 4);
 
-
-figure(30)
-
+hf = figure;
+hf.Name = 'GA ERD on PSD';
 subplot(231)
 imagesc(t, f, ERDhands_GA(:, :, chns(1))')
 colormap hot
 colorbar
 % clim([-1.1, 1.7])
-name = char(subj_name);
-title(strcat('ERD avg both hands - C3 - ',name(1:3)))
+title('GA ERD avg both hands - C3')
 xlabel('Time [s]')
 ylabel('Frequency [Hz]')
 set(gca,'YDir','normal')
@@ -1141,8 +1119,7 @@ imagesc(t, f, ERDhands_GA(:, :, chns(2))')
 colormap hot
 colorbar
 % clim([-1.1, 1.7])
-name = char(subj_name);
-title(strcat('ERD avg both hands - Cz - ',name(1:3)))
+title('GA ERD avg both hands - Cz')
 xlabel('Time [s]')
 ylabel('Frequency [Hz]')
 set(gca,'YDir','normal')
@@ -1152,8 +1129,7 @@ imagesc(t, f, ERDhands_GA(:, :, chns(3))')
 colormap hot
 colorbar
 % clim([-1.1, 1.7])
-name = char(subj_name);
-title(strcat('ERD avg both hands - C4 - ',name(1:3)))
+title('GA ERD avg both hands - C4')
 xlabel('Time [s]')
 ylabel('Frequency [Hz]')
 set(gca,'YDir','normal')
@@ -1163,8 +1139,7 @@ imagesc(t, f, ERDfeet_GA(:, :, chns(1))')
 colormap hot
 colorbar
 % clim([-1.1, 1.7])
-name = char(subj_name);
-title(strcat('ERD avg both feet - C3 - ',name(1:3)))
+title('GA ERD avg both feet - C3')
 xlabel('Time [s]')
 ylabel('Frequency [Hz]')
 set(gca,'YDir','normal')
@@ -1174,8 +1149,7 @@ imagesc(t, f, ERDfeet_GA(:, :, chns(2))')
 colormap hot
 colorbar
 % clim([-1.1, 1.7])
-name = char(subj_name);
-title(strcat('ERD avg both feet - Cz - ',name(1:3)))
+title('GA ERD avg both feet - Cz')
 xlabel('Time [s]')
 ylabel('Frequency [Hz]')
 set(gca,'YDir','normal')
@@ -1185,36 +1159,34 @@ imagesc(t, f, ERDfeet_GA(:, :, chns(3))')
 colormap hot
 colorbar
 % clim([-1.1, 1.7])
-name = char(subj_name);
-title(strcat('ERD avg both feet - C4 - ',name(1:3)))
+title('GA ERD avg both feet - C4')
 xlabel('Time [s]')
 ylabel('Frequency [Hz]')
 set(gca,'YDir','normal')
 
 
+%% Features calculation and maps visualization on each run
 
-%% Feature maps PER OGNI RUN DI OGNI SUBJECT
-
+% Define channels' labels
 channels = {"Fz", "FC3", "FC1", "FCz", "FC2", "FC4", "C3", "C1", "Cz", "C2", "C4", "CP3", "CP1", "CPz", "CP2", "CP4"};
 
 for i = 1:length(data)
     subj_name = data(i);
 
-    % load runs
     runs = dir(fullfile(pwd, strcat("Data/", subj_name)));
     runs_names = {runs.name};
     
     count_off = 0;
     for j = 1:length(runs_names)
         run_name = runs_names{j};
-        if run_name(1) == 'a' % actual run
+        if run_name(1) == 'a'
 
-            % save data
-            % offline run
+            % Offline runs
             if run_name(21:27) == 'offline'
                 count_off = count_off + 1;
                 field_name = strcat("offline",string(count_off));
 
+                % Store the values in temporary variables
                 PSD = subjects.(subj_name).(field_name).PSD;
                 h_PSD = subjects.(subj_name).(field_name).h_PSD;
                 h_PSD.TYP = subjects.(subj_name).(field_name).h.EVENT.TYP;      % Add TYP field
@@ -1222,10 +1194,13 @@ for i = 1:length(data)
                 % Calculate the label vectors
                 tmpVecs = labelVecs(PSD, h_PSD);
 
+                % Extract PSD windows from Cue to Continuous Feedback and take the logarithm
                 wnds_CktoCFk = log(PSD(tmpVecs.Ak > 0 | tmpVecs.CFk > 0, :, :));
+
+                % Reshape features to obtain a 2D matrix [windows x (channels x frequencies)]
                 features = reshape(wnds_CktoCFk, [size(wnds_CktoCFk, 1), size(wnds_CktoCFk, 2) * size(wnds_CktoCFk, 3)]);
 
-                idx = tmpVecs.Ak + tmpVecs.CFk;                 % Vector containing 771, 773 or 781
+                idx = tmpVecs.Ak + tmpVecs.CFk;                 % Vector containing the codes for Cue and Continuous Feedback
                 idx = idx(idx > 0);
                 class = (idx < 781) .* idx;                     % Vector containing the class for each window
 
@@ -1238,10 +1213,12 @@ for i = 1:length(data)
                 % Fisher score computation
                 FS = abs(mean(features(class == 771, :), 1) - mean(features(class == 773, :), 1))./sqrt(std(features(class == 771, :), 1).^2 + std(features(class == 773, :), 1).^2);
 
-                hf.Name = ['Subject ', num2str(i), ' run ', num2str(j)];
+                % Feature maps visualization
+                hf = figure;
+                hf.Name = ['Subject ', data{i}(1:3), ' run ', num2str(j)];
                 hf.NumberTitle = 'off';
-                title(['Subject ', num2str(i), ' run ', num2str(j)])
-                imagesc(f, 1:16, flipud(imrotate(reshape(FS, [23, 16]), 90)))
+                title(['Subject ', data{i}(1:3), ' run ', num2str(j)])
+                imagesc(f, 1:16, flipud(imrotate(reshape(FS, [23, 16]), 90)))       % Visualize Fisher Score maps
                 xticks(f)
                 xtickangle(90)
                 xlabel("Hz")
@@ -1260,22 +1237,22 @@ for i = 1:length(data)
     end
 end
 
-%% Feature selection
-
-channels = {"Fz", "FC3", "FC1", "FCz", "FC2", "FC4", "C3", "C1", "Cz", "C2", "C4", "CP3", "CP1", "CPz", "CP2", "CP4"};
+%% Features calculation and maps visualization on concatenated runs
 
 ax0 = figure();
 
 for i = 1:length(data)
     subj_name = data(i);
 
-    % Define features
+    % Extract PSD windows from Cue to Continuous Feedback and take the logarithm
     wnds_CktoCFk = log(subjects.(subj_name).PSD_c(subjects.(subj_name).vectors_PSD.Ak > 0 | subjects.(subj_name).vectors_PSD.CFk > 0, :, :));
+    
+    % Reshape features to obtain a 2D matrix [windows x (channels x frequencies)]
     features = reshape(wnds_CktoCFk, [size(wnds_CktoCFk, 1), size(wnds_CktoCFk, 2) * size(wnds_CktoCFk, 3)]);
 
-    idx = subjects.(subj_name).vectors_PSD.Ak + subjects.(subj_name).vectors_PSD.CFk;       % Vector containing 771, 773 or 781
+    idx = subjects.(subj_name).vectors_PSD.Ak + subjects.(subj_name).vectors_PSD.CFk;       % Vector containing the codes for Cue and Continuous Feedback
     idx = idx(idx > 0);
-    class = (idx < 781) .* idx;     % Vector containing the class for each window
+    class = (idx < 781) .* idx;                                                             % Vector containing the class for each window
 
     for j = 2 : length(idx)
         if class(j-1) > 0 && class(j) == 0      % If the current class is 0, then
@@ -1286,9 +1263,10 @@ for i = 1:length(data)
     % Fisher score computation
     FS = abs(mean(features(class == 771, :), 1) - mean(features(class == 773, :), 1))./sqrt(std(features(class == 771, :), 1).^2 + std(features(class == 773, :), 1).^2);
 
+    % Feature maps visualization
     set(0,'CurrentFigure',ax0)
     subplot(2, 4, mod(i-1, 8)+1, 'Parent', ax0)
-    title(strcat('Subject ', num2str(i)))
+    title(strcat('Subject ', data{i}(1:3)))
     imagesc(f, 1:16, flipud(imrotate(reshape(FS, [23, 16]), 90)))
     xticks(f)
     xtickangle(90)
@@ -1309,14 +1287,13 @@ for i = 1:length(data)
     plot(f(row_feat), col_feat, 'ro', 'MarkerSize', 10, 'LineWidth', 2)             % Circle the most discriminative features
     hold off
 
-
     % Define features for online runs
     wnds_CktoCFk_online = log(subjects.(subj_name).PSD_c_online(subjects.(subj_name).vectors_PSD_online.Ak > 0 | subjects.(subj_name).vectors_PSD_online.CFk > 0, :, :));
     features_online = reshape(wnds_CktoCFk_online, [size(wnds_CktoCFk_online, 1), size(wnds_CktoCFk_online, 2) * size(wnds_CktoCFk_online, 3)]);
 
-    idx = subjects.(subj_name).vectors_PSD_online.Ak + subjects.(subj_name).vectors_PSD_online.CFk;       % Vector containing 771, 773 or 781
+    idx = subjects.(subj_name).vectors_PSD_online.Ak + subjects.(subj_name).vectors_PSD_online.CFk;
     idx = idx(idx > 0);
-    class = (idx ~= 781) .* idx;     % Vector containing the class for each window
+    class = (idx ~= 781) .* idx;
 
     for j = 2 : length(idx)
         if class(j-1) > 0 && class(j) == 0      % If the current class is 0, then
@@ -1332,18 +1309,12 @@ for i = 1:length(data)
 end
 
 
-% Identify and extract the most relevant features for each subject and on
-% subject average
-
-
-%% Models
+%% Create classifiers based on the extracted features
 
 for i = 1:length(data)
     subj_name = data(i);
 
-    % Define the new matrix containing the data corresponding to the most
-    % discriminative features
-
+    % Define the new matrix containing the data corresponding to the most discriminative features
     row_feat = subjects.(subj_name).row_feat;
     col_feat = subjects.(subj_name).col_feat;
 
@@ -1363,6 +1334,7 @@ for i = 1:length(data)
     mdl = fitcdiscr(X, y, 'DiscrimType','quadratic');
     subjects.(subj_name).mdl = mdl;
 
+    % Store all important information for each subject
     data_subjects.PSD_c_online = subjects.(subj_name).PSD_c_online;
     data_subjects.h_PSD_online = subjects.(subj_name).h_PSD_online;
     data_subjects.vectors_PSD_online = subjects.(subj_name).vectors_PSD_online;
@@ -1373,11 +1345,13 @@ for i = 1:length(data)
     data_subjects.class = subjects.(subj_name).class_online;
 
     name = strcat(pwd, '\Data\', subj_name, '\data');
+    
+    % Save information in a .mat file
     save(name, 'mdl', 'data_subjects')
     
 end
 
-%% Model evaluation on training data
+%% Models evaluation on training data
 
 for i = 1:length(data)
     subj_name = data(i);
@@ -1387,8 +1361,10 @@ for i = 1:length(data)
     % Model prediction
     [Gk, pp] = predict(mdl, subjects.(subj_name).train_set);
 
+    % Save raw probability
     subjects.(subj_name).pp = pp;
 
+    % Load the label vector
     y = subjects.(subj_name).class;
 
     % Calculate the total accuracy (correct predictions over total predictions)
@@ -1400,9 +1376,9 @@ for i = 1:length(data)
     
     % Print accuracies
     fprintf('Accuracies of the model for subject %s\n', data{i}(1:3));
-    fprintf('Accuracy: %f\n', tot_accuracy);
-    fprintf('Accuracy both feet: %f\n', feet_accuracy);
-    fprintf('Accuracy both hands: %f\n\n', hands_accuracy);
+    fprintf('Accuracy: %f%%\n', tot_accuracy);
+    fprintf('Accuracy both feet: %f%%\n', feet_accuracy);
+    fprintf('Accuracy both hands: %f%%\n\n', hands_accuracy);
 
     % Accuracy bar plot
     xaxis = ["overall" "both hands" "both feet"];
@@ -1415,124 +1391,106 @@ for i = 1:length(data)
     ylabel('Accuracy [%]')
     ylim([0, 100])
     grid on
-
 end
 
 %% Accumulation framework for offline data
 
-% (trial based accuracy)
-
 % Exponential accumulation framework
-alpha = 0.95; % smoothing parameter [0 1]
+alpha = 0.95;                   % Smoothing parameter
 
 for i = 1:length(data)
     subj_name = data(i);
     pp = subjects.(subj_name).pp;
 
-    % COME SCUSA
+    % For each window in Cue and Continuous Feedback tasks, extract the number of the trial
     trials_windows = subjects.(subj_name).vectors_PSD.Tk(subjects.(subj_name).vectors_PSD.Ak > 0 | subjects.(subj_name).vectors_PSD.CFk > 0);
     
+    % Define the number of windows
     nwindows = length(pp);
+
+    % Initialize Decision data structure
     D = 0.5 * ones(nwindows, 2);
+
     for wId = 2:nwindows
-        % Is the first sample of a new trial?
+
+        % Verify if the sample is the start of a new trial
         if trials_windows(wId) ~= trials_windows(wId-1)
-            % |- YES: Reset the current evidence (i.e., D(wId) to [0.5 0.5])
+            % If it is, restore the Decision value to 0.5
             D(wId,:) = [0.5 0.5];
         else 
-            % |- NO:  Keep integrating the value
+            % Otherwise, compute the Decision value based on pp and previous Decision
             D(wId,:) = D(wId - 1,:) * alpha + pp(wId,:) * (1 - alpha);
         end
     end
     
-    % save results
+    % Save results
     subjects.(subj_name).D = D;
 
 end
 
+%% Trial Accuracy computation
 
-% DA ADATTARE
-
-%% Plot trial accuracy
-
+% Define decision thresholds
 thr = [0.3 0.7];
 
-% posterior proabablity pp of trial 55
-% trial_number = randi(100, 1);
-sel_trial = 30;
-
+% Initialize data structure to store the average time to deliver a command 
 t_avg = zeros(1, length(data));
 
 for i = 1:length(data)
     subj_name = data(i);
 
-    % salvare il tempo medio per raggiungere la threshold
-
+    % For each window in Cue and Continuous Feedback tasks, extract the number of the trial
     trials_windows = subjects.(subj_name).vectors_PSD.Tk(subjects.(subj_name).vectors_PSD.Ak > 0 | subjects.(subj_name).vectors_PSD.CFk > 0);
     pp = subjects.(subj_name).pp;
     D = subjects.(subj_name).D;
 
-    pp_trial = pp(trials_windows == sel_trial,:);
-    D_trial = D(trials_windows == sel_trial,:); % integrated probability
-    samples = 1:length(pp_trial(:,2));
+    % Initialize structures
+    Gk_trial_all = zeros(max(trials_windows),1);            % Store trial prediction for each trial
+    t_for_command = zeros(max(trials_windows),1);           % Store the time for a command for each trial
 
-    % figure
-    % hold on
-    % scatter(samples, pp_trial(:,2), 'k')
-    % plot(samples, D_trial(:,2), 'k', 'LineWidth', 2)
-    % title(['Trial ', num2str(sel_trial), ' - Class both hands'])
-    % xlabel('samples')
-    % ylabel('probability/control')
-    % legend('posterior probability', 'integrated probability', 'Location', 'best')
-    % yline(0.5, '--')
-    % yline(thr(1), 'k')
-    % yline(thr(2), 'k')
-    % ylim([0 1])
-    % xlim([1 samples(end)])
-
-    Gk_trial_all = zeros(max(trials_windows),1);
-
-    t_for_command = zeros(max(trials_windows),1);
-
-    % compute classification for succesful trials (no timeout)
+    % Compute classification for succesful trials
     for trial_number = 1 : max(trials_windows)
-        
         
         D_trial = D(trials_windows == trial_number,:);
 
+        % Structure to store the sample when the threshold is reached
         t = zeros(1, length(D_trial));
 
         for j = 1 : length(D_trial)
             if D_trial(j) <= thr(1)
-                Gk_trial_all(trial_number) = 773; % trial classified as both hands
-                t(j) = j;
-                % breaks
+                Gk_trial_all(trial_number) = 773;   % Trial classified as both hands
+                t(j) = j;                           % Save the sample index if the th is reached
             end
             if D_trial(j) >= thr(2)
-                Gk_trial_all(trial_number) = 771; % trial classified as both hands
-                t(j) = j;
-                % break
-                % contatore??????
+                Gk_trial_all(trial_number) = 771;   % Trial classified as both feet
+                t(j) = j;                           % Save the sample index if the th is reached
 
             end
         end
 
+        % If the threshold is reached, t_for_command is saved as the first sample after reaching the threshold
         if sum(t) > 0
             t_for_command(trial_number) = find(t > 0, 1, "first");
         end
-
     end
+
+    % Compute the average time to deliver a command
     t_avg(i) = mean(t_for_command(t_for_command > 0));
 
+    % Save trial predictions
     subjects.(subj_name).Gk_trial_all = Gk_trial_all;
 end
 
-% Dobbiamo trasformare in secondi
-t_avg = t_avg * 0.0625;
+% Convert time in seconds
+t_avg = t_avg * 0.0625;             % [s]
 
 
 %% Trial accuracy with and without rejection of time-out trials
 
+% Clear command window to print new accuracies
+clc
+
+% Initialize data structures
 trial_accuracy_no_rejection = zeros(1, length(data));
 trial_accuracy_no_rejection_feet  = zeros(1, length(data));
 trial_accuracy_no_rejection_hands = zeros(1, length(data));
@@ -1540,25 +1498,371 @@ trial_accuracy_no_rejection_hands = zeros(1, length(data));
 for i = 1:length(data)
     subj_name = data(i);
 
+    % Store values in temporary variables
     trials_windows = subjects.(subj_name).vectors_PSD.Tk(subjects.(subj_name).vectors_PSD.Ak > 0 | subjects.(subj_name).vectors_PSD.CFk > 0);
     pp = subjects.(subj_name).pp;
     D = subjects.(subj_name).D;
-
     Gk_trial_all = subjects.(subj_name).Gk_trial_all;
 
+    % Calculate accuracy
     trial_accuracy_no_rejection(i) = mean(Gk_trial_all == subjects.(subj_name).vectors_PSD.Ck) * 100;
     trial_accuracy_no_rejection_feet(i)  = mean(Gk_trial_all(subjects.(subj_name).vectors_PSD.Ck == 771) == subjects.(subj_name).vectors_PSD.Ck(subjects.(subj_name).vectors_PSD.Ck == 771)) * 100;
     trial_accuracy_no_rejection_hands(i) = mean(Gk_trial_all(subjects.(subj_name).vectors_PSD.Ck == 773) == subjects.(subj_name).vectors_PSD.Ck(subjects.(subj_name).vectors_PSD.Ck == 773)) * 100;
 
+    % Data for the bar graph
     accuracies = [trial_accuracy_no_rejection(i), trial_accuracy_no_rejection_feet(i), trial_accuracy_no_rejection_hands(i)];
     x_labels = {'Overall', 'Both Hands', 'Both Feet'};
     
-    figure()
+    % Accuracies visualization as a bar graph
+    hf = figure;
+    hf.Name = ['Subject ', data{i}(1:3), ' accuracies on test'];
+    hf.NumberTitle = 'off';
     bar(accuracies)
     set(gca, 'xticklabel', x_labels)
     ylabel('Accuracy [%]')
-    title('Trial accuracy on test set')
+    title(['Trial accuracy on test set - subject ', data{i}(1:3)])
     ylim([0, 100])
     grid on
+
+    % Print accuracies
+    fprintf('Trial accuracies of the model (no rejection) for subject %s\n', data{i}(1:3));
+    fprintf('Accuracy: %f%%\n', trial_accuracy_no_rejection(i));
+    fprintf('Accuracy both feet: %f%%\n', trial_accuracy_no_rejection_feet(i));
+    fprintf('Accuracy both hands: %f%%\n\n', trial_accuracy_no_rejection_hands(i));
 end
 
+%% Rejection
+
+% Clear command window to print new accuracies
+clc
+
+% Initialize data structures
+trial_accuracy_rejection = zeros(1, length(data));
+trial_accuracy_rejection_feet  = zeros(1, length(data));
+trial_accuracy_rejection_hands = zeros(1, length(data));
+
+for i = 1:length(data)
+    subj_name = data(i);
+
+    % Store values in temporary variables
+    trials_windows = subjects.(subj_name).vectors_PSD.Tk(subjects.(subj_name).vectors_PSD.Ak > 0 | subjects.(subj_name).vectors_PSD.CFk > 0);
+    pp = subjects.(subj_name).pp;
+    D = subjects.(subj_name).D;
+    Gk_trial_all = subjects.(subj_name).Gk_trial_all;
+
+    % Find the trials to reject
+    idx_rejection = (Gk_trial_all ~= 0);
+
+    % Calculate the accuracy on the remaining trials
+    trial_accuracy_rejection(i) = mean(Gk_trial_all(idx_rejection) == subjects.(subj_name).vectors_PSD.Ck(idx_rejection)) * 100;
+    trial_accuracy_rejection_feet(i)  = mean(Gk_trial_all(idx_rejection & subjects.(subj_name).vectors_PSD.Ck == 771) == subjects.(subj_name).data_subjects.vectors_PSD_online.Ck(idx_rejection & subjects.(subj_name).data_subjects.vectors_PSD_online.Ck == 771)) * 100;
+    trial_accuracy_rejection_hands(i) = mean(Gk_trial_all(idx_rejection & subjects.(subj_name).vectors_PSD.Ck == 773) == subjects.(subj_name).data_subjects.vectors_PSD_online.Ck(idx_rejection & subjects.(subj_name).data_subjects.vectors_PSD_online.Ck == 773)) * 100;
+
+    % Data for the bar graph
+    accuracies = [trial_accuracy_rejection(i), trial_accuracy_rejection_feet(i), trial_accuracy_rejection_hands(i)];
+    x_labels = {'Overall', 'Both Hands', 'Both Feet'};
+    
+    % Accuracies visualization as a bar graph
+    hf = figure;
+    hf.Name = ['Subject ', data{i}(1:3), ' accuracies on test'];
+    hf.NumberTitle = 'off';
+    bar(accuracies)
+    set(gca, 'xticklabel', x_labels)
+    ylabel('Accuracy [%]')
+    title(['Trial accuracy on test set - subject ', data{i}(1:3)])
+    ylim([0, 100])
+    grid on
+
+    % Print accuracies
+    fprintf('Trial accuracies of the model for subject %s\n', data{i}(1:3));
+    fprintf('Accuracy: %f%%\n', trial_accuracy_rejection(i));
+    fprintf('Accuracy both feet: %f%%\n', trial_accuracy_rejection_feet(i));
+    fprintf('Accuracy both hands: %f%%\n', trial_accuracy_rejection_hands(i));
+
+    % Print time to deliver a command
+    fprintf('Time to deliver a command %f s\n\n', t_avg(i));
+
+end
+
+
+
+%% Grand Average analysis on representative subjects
+
+% In order to find representative subjects, each subject's feature maps
+% were considered. A subject was considered as representative if:
+% 1) The features of each of his runs were stable;
+% 2) The features included (at least 2) of the most relevant channels for
+% the analysis (C3, Cz, C4) VEDERE SE AGGIUNGERE UNA CITAZIONE PER STA COSA
+
+% For these reasons, subjects aj7, aj9 and ai7 were not considered as
+% representative:
+% Aj7: features instability during the runs
+% Aj9: no relevant channel for the analysis among the features
+% Ai7: features instability during the runs
+
+
+% Subjects to remove based on the feature maps
+subjects_to_remove = {'aj7', 'aj9', 'ai7'};
+
+% Initialize data structures
+ERDmu_feet_tot    = zeros(minLen_ERDmu_feet, length(channels), length(data)-length(subjects_to_remove));
+ERDmu_hands_tot   = zeros(minLen_ERDmu_hands, length(channels), length(data)-length(subjects_to_remove));
+ERDbeta_feet_tot  = zeros(minLen_ERDbeta_feet, length(channels), length(data)-length(subjects_to_remove));
+ERDbeta_hands_tot = zeros(minLen_ERDbeta_hands, length(channels), length(data)-length(subjects_to_remove));
+
+for i = 1 : (length(data) - length(subjects_to_remove))
+    subj_name = data(i);
+
+    % Check that the name is not associated with a non representative subject
+    if ~contains(subj_name, 'aj7', 'IgnoreCase', true) && ~contains(subj_name, 'aj9', 'IgnoreCase', true) && ~contains(subj_name, 'ai7', 'IgnoreCase', true)
+    % if ~contains(subj_name, 'aj7', 'IgnoreCase', true) && ~contains(subj_name, 'ai7', 'IgnoreCase', true)
+        ERDmu_feet_tot(:, :, i)    = subjects.(subj_name).ERD_logBP_mu_avg_feet(1:minLen_ERDmu_feet,:);
+        ERDmu_hands_tot(:, :, i)   = subjects.(subj_name).ERD_logBP_mu_avg_hands(1:minLen_ERDmu_hands,:);
+        ERDbeta_feet_tot(:, :, i)  = subjects.(subj_name).ERD_logBP_beta_avg_feet(1:minLen_ERDbeta_feet,:);
+        ERDbeta_hands_tot(:, :, i) = subjects.(subj_name).ERD_logBP_beta_avg_hands(1:minLen_ERDbeta_hands,:);
+    end
+end
+
+% Compute Grand Average
+ERDmu_feet_GA    = mean(ERDmu_feet_tot, 3);
+ERDmu_hands_GA   = mean(ERDmu_hands_tot, 3);
+ERDbeta_feet_GA  = mean(ERDbeta_feet_tot, 3);
+ERDbeta_hands_GA = mean(ERDbeta_hands_tot, 3);
+
+% Compute standard error
+ERDmu_feet_SE    = std(ERDmu_feet_tot, 0, 3)./sqrt(length(ERDmu_feet_tot(1, 1, :)));
+ERDmu_hands_SE   = std(ERDmu_hands_tot, 0, 3)./sqrt(length(ERDmu_hands_tot(1, 1, :)));
+ERDbeta_feet_SE  = std(ERDbeta_feet_tot, 0, 3)./sqrt(length(ERDbeta_feet_tot(1, 1, :)));
+ERDbeta_hands_SE = std(ERDbeta_hands_tot, 0, 3)./sqrt(length(ERDbeta_hands_tot(1, 1, :)));
+
+% GA temporal plots
+figure;
+T = 1/sample_rate;                              % [s]
+t = 0:T:(length(ERDmu_feet_GA(:,1,1))-1)*T;     % [s]
+
+subplot(231), hold on
+plot(t, ERDmu_feet_GA(:, chns(1)), 'g')
+plot(t, ERDmu_feet_GA(:, chns(1)) - ERDmu_feet_SE(:, chns(1)), ':g')
+plot(t, ERDmu_feet_GA(:, chns(1)) + ERDmu_feet_SE(:, chns(1)), ':g')
+plot(t, ERDmu_hands_GA(:, chns(1)), 'r')
+plot(t, ERDmu_hands_GA(:, chns(1)) - ERDmu_hands_SE(:, chns(1)), ':r')
+plot(t, ERDmu_hands_GA(:, chns(1)) + ERDmu_hands_SE(:, chns(1)), ':r')
+xlabel('Time [s]')
+ylabel('[ERD/ERS]')
+title('Grand Average ERD logBP \mu C3')
+legend('both feet', 'both hands')
+ylim([-50, 70])
+hold off
+
+subplot(232), hold on
+plot(t, ERDmu_feet_GA(:, chns(2)), 'g')
+plot(t, ERDmu_feet_GA(:, chns(2)) - ERDmu_feet_SE(:, chns(2)), ':g')
+plot(t, ERDmu_feet_GA(:, chns(2)) + ERDmu_feet_SE(:, chns(2)), ':g')
+plot(t, ERDmu_hands_GA(:, chns(2)), 'r')
+plot(t, ERDmu_hands_GA(:, chns(2)) - ERDmu_hands_SE(:, chns(2)), ':r')
+plot(t, ERDmu_hands_GA(:, chns(2)) + ERDmu_hands_SE(:, chns(2)), ':r')
+xlabel('Time [s]')
+ylabel('[ERD/ERS]')
+ylim([-50, 70])
+title('Grand Average ERD logBP \mu Cz')
+legend('both feet', 'both hands')
+hold off
+
+subplot(233), hold on
+plot(t, ERDmu_feet_GA(:, chns(3)), 'g')
+plot(t, ERDmu_feet_GA(:, chns(3)) - ERDmu_feet_SE(:, chns(3)), ':g')
+plot(t, ERDmu_feet_GA(:, chns(3)) + ERDmu_feet_SE(:, chns(3)), ':g')
+plot(t, ERDmu_hands_GA(:, chns(3)), 'r')
+plot(t, ERDmu_hands_GA(:, chns(3)) - ERDmu_hands_SE(:, chns(3)), ':r')
+plot(t, ERDmu_hands_GA(:, chns(3)) + ERDmu_hands_SE(:, chns(3)), ':r')
+xlabel('Time [s]')
+ylabel('[ERD/ERS]')
+ylim([-50, 70])
+title('Grand Average ERD logBP \mu C4')
+legend('both feet', 'both hands')
+hold off
+
+subplot(234), hold on
+plot(t, ERDbeta_feet_GA(:, chns(1)), 'g')
+plot(t, ERDbeta_feet_GA(:, chns(1)) - ERDbeta_feet_SE(:, chns(1)), ':g')
+plot(t, ERDbeta_feet_GA(:, chns(1)) + ERDbeta_feet_SE(:, chns(1)), ':g')
+plot(t, ERDbeta_hands_GA(:, chns(1)), 'r')
+plot(t, ERDbeta_hands_GA(:, chns(1)) - ERDbeta_hands_SE(:, chns(1)), ':r')
+plot(t, ERDbeta_hands_GA(:, chns(1)) + ERDbeta_hands_SE(:, chns(1)), ':r')
+xlabel('Time [s]')
+ylabel('[ERD/ERS]')
+ylim([-50, 70])
+title('Grand Average ERD logBP \beta C3')
+legend('both feet', 'both hands')
+hold off
+
+subplot(235), hold on
+plot(t, ERDbeta_feet_GA(:, chns(2)), 'g')
+plot(t, ERDbeta_feet_GA(:, chns(2)) - ERDbeta_feet_SE(:, chns(2)), ':g')
+plot(t, ERDbeta_feet_GA(:, chns(2)) + ERDbeta_feet_SE(:, chns(2)), ':g')
+plot(t, ERDbeta_hands_GA(:, chns(2)), 'r')
+plot(t, ERDbeta_hands_GA(:, chns(2)) - ERDbeta_hands_SE(:, chns(2)), ':r')
+plot(t, ERDbeta_hands_GA(:, chns(2)) + ERDbeta_hands_SE(:, chns(2)), ':r')
+xlabel('Time [s]')
+ylabel('[ERD/ERS]')
+ylim([-50, 70])
+title('Grand Average ERD logBP \beta Cz')
+legend('both feet', 'both hands')
+hold off
+
+subplot(236), hold on
+plot(t, ERDbeta_feet_GA(:, chns(3)), 'g')
+plot(t, ERDbeta_feet_GA(:, chns(3)) - ERDbeta_feet_SE(:, chns(3)), ':g')
+plot(t, ERDbeta_feet_GA(:, chns(3)) + ERDbeta_feet_SE(:, chns(3)), ':g')
+plot(t, ERDbeta_hands_GA(:, chns(3)), 'r')
+plot(t, ERDbeta_hands_GA(:, chns(3)) - ERDbeta_hands_SE(:, chns(3)), ':r')
+plot(t, ERDbeta_hands_GA(:, chns(3)) + ERDbeta_hands_SE(:, chns(3)), ':r')
+xlabel('Time [s]')
+ylabel('[ERD/ERS]')
+ylim([-50, 70])
+title('Grand Average ERD logBP \beta C4')
+legend('both feet', 'both hands')
+hold off
+
+
+% Topographic plots
+load('chanlocs16.mat');
+len = min(h.DUR(h.TYP == 786));
+
+% mu band
+ERD_Ref_773 = mean(ERDmu_hands_GA(1:len, :), 1);
+ERD_Act_773 = mean(ERDmu_hands_GA(len+1:end, :), 1);
+ERD_Ref_771 = mean(ERDmu_feet_GA(1:len, :), 1);
+ERD_Act_771 = mean(ERDmu_feet_GA(len+1:end, :), 1);
+
+hf = figure;
+hf.Name = 'Topographical maps mu';
+hf.NumberTitle = 'off';
+subplot(221)
+topoplot(squeeze(ERD_Ref_773), chanlocs16);
+title('Reference - \mu band - both hands')
+colorbar
+clim([-20, 20])
+subplot(222)
+topoplot(squeeze(ERD_Act_773), chanlocs16);
+title('Activity - \mu band - both hands')
+colorbar
+clim([-20, 20])
+subplot(223)
+topoplot(squeeze(ERD_Ref_771), chanlocs16);
+title('Reference - \mu band - both feet')
+colorbar
+clim([-20, 20])
+subplot(224)
+topoplot(squeeze(ERD_Act_771), chanlocs16);
+title('Activity - \mu band - both feet')
+colorbar
+clim([-20, 20])
+
+% beta band
+ERD_Ref_773 = mean(ERDbeta_hands_GA(1:len, :), 1);
+ERD_Act_773 = mean(ERDbeta_hands_GA(len+1:end, :), 1);
+ERD_Ref_771 = mean(ERDbeta_feet_GA(1:len, :), 1);
+ERD_Act_771 = mean(ERDbeta_feet_GA(len+1:end, :), 1);
+
+hf = figure;
+hf.Name = 'Topographical maps beta';
+hf.NumberTitle = 'off';
+subplot(221)
+topoplot(squeeze(ERD_Ref_773), chanlocs16);
+title('Reference - \beta band - both hands')
+colorbar
+clim([-10, 10])
+subplot(222)
+topoplot(squeeze(ERD_Act_773), chanlocs16);
+title('Activity - \beta band - both hands')
+colorbar
+clim([-10, 10])
+subplot(223)
+topoplot(squeeze(ERD_Ref_771), chanlocs16);
+title('Reference - \beta band - both feet')
+colorbar
+clim([-10, 10])
+subplot(224)
+topoplot(squeeze(ERD_Act_771), chanlocs16);
+title('Activity - \beta band - both feet')
+colorbar
+clim([-10, 10])
+
+
+%% Grand average ERD/ERS on PSD of representative subjects
+
+% Initialize data structures
+ERDfeet_tot  = zeros(minLen_ERDfeet, length(f), length(channels), length(data) - length(subjects_to_remove));
+ERDhands_tot = zeros(minLen_ERDhands, length(f), length(channels), length(data) - length(subjects_to_remove));
+
+for i = 1 : (length(data) - length(subjects_to_remove))
+    subj_name = data(i);
+
+    % Check that the name is not associated with a non representative subject
+    if ~contains(subj_name, 'aj7', 'IgnoreCase', true) && ~contains(subj_name, 'aj9', 'IgnoreCase', true) && ~contains(subj_name, 'ai7', 'IgnoreCase', true)
+        ERDfeet_tot(:, :, :, i)    = subjects.(subj_name).ERDavg_feet(1:minLen_ERDfeet,:,:);
+        ERDhands_tot(:, :, :, i)   = subjects.(subj_name).ERDavg_hands(1:minLen_ERDhands,:,:);
+    end
+end
+
+% Compute Grand Average for representative subjects
+ERDfeet_GA  = mean(ERDfeet_tot, 4);
+ERDhands_GA = mean(ERDhands_tot, 4);
+
+hf = figure;
+hf.Name = 'GA ERD on PSD';
+hf.NumberTitle = 'off';
+subplot(231)
+imagesc(t, f, ERDhands_GA(:, :, chns(1))')
+colormap hot
+colorbar
+title('GA ERD avg both hands - C3')
+xlabel('Time [s]')
+ylabel('Frequency [Hz]')
+set(gca,'YDir','normal')
+
+subplot(232)
+imagesc(t, f, ERDhands_GA(:, :, chns(2))')
+colormap hot
+colorbar
+title('GA ERD avg both hands - Cz')
+xlabel('Time [s]')
+ylabel('Frequency [Hz]')
+set(gca,'YDir','normal')
+
+subplot(233)
+imagesc(t, f, ERDhands_GA(:, :, chns(3))')
+colormap hot
+colorbar
+title('GA ERD avg both hands - C4')
+xlabel('Time [s]')
+ylabel('Frequency [Hz]')
+set(gca,'YDir','normal')
+
+subplot(234)
+imagesc(t, f, ERDfeet_GA(:, :, chns(1))')
+colormap hot
+colorbar
+title('GA ERD avg both feet - C3')
+xlabel('Time [s]')
+ylabel('Frequency [Hz]')
+set(gca,'YDir','normal')
+
+subplot(235)
+imagesc(t, f, ERDfeet_GA(:, :, chns(2))')
+colormap hot
+colorbar
+title('GA ERD avg both feet - Cz')
+xlabel('Time [s]')
+ylabel('Frequency [Hz]')
+set(gca,'YDir','normal')
+
+subplot(236)
+imagesc(t, f, ERDfeet_GA(:, :, chns(3))')
+colormap hot
+colorbar
+title('GA ERD avg both feet - C4')
+xlabel('Time [s]')
+ylabel('Frequency [Hz]')
+set(gca,'YDir','normal')
