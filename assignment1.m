@@ -24,6 +24,9 @@ addpath(genpath(fullfile(pwd, "Data/")))
 
 %% Data loading and PSD computation
 
+% Define channels' labels
+channels = {"Fz", "FC3", "FC1", "FCz", "FC2", "FC4", "C3", "C1", "Cz", "C2", "C4", "CP3", "CP1", "CPz", "CP2", "CP4"};
+
 % Loading Laplacian Mask
 load('laplacian16.mat');
 
@@ -80,11 +83,6 @@ for i = 1:length(data)
 
                 disp(['N_trials removed from subj ', data{i}(1:3), ' run ', num2str(j-2), ': ', num2str(numremtrials)])
 
-                % t = 0 : 1/512 : (size(s, 1) - 1)/512;
-                % figure()
-                % plot(t, s)
-                % title(['subj ', num2str(i), ' run ', num2str(j-2)])
-
                 % Save information for each run
                 subjects.(subj_name).(field_name).s = s;
                 subjects.(subj_name).(field_name).h = h;
@@ -117,44 +115,7 @@ for i = 1:length(data)
     end
 end
 
-disp(['N_trials removed in total ', num2str(tot_num_rem_trials)])
-
-%% Remove trials related to artifacts
-% 
-% pos_artifacts_run1 = subjects.ai7_micontinuous.offline1.h.EVENT.POS([57, 65]);
-% pos_artifacts_run3 = subjects.ai7_micontinuous.offline3.h.EVENT.POS([37, 41]);
-% 
-% num_artifacts_samples_run1 = pos_artifacts_run1(2) - pos_artifacts_run1(1);
-% num_artifacts_samples_run3 = pos_artifacts_run3(2) - pos_artifacts_run3(1);
-% 
-% pos_artifacts_run1(2) = pos_artifacts_run1(2) - 1;
-% pos_artifacts_run3(2) = pos_artifacts_run3(2) - 1;
-% 
-% subjects.ai7_micontinuous.offline1.s(pos_artifacts_run1(1) : pos_artifacts_run1(2), :) = [];
-% subjects.ai7_micontinuous.offline3.s(pos_artifacts_run3(1) : pos_artifacts_run3(2), :) = [];
-% 
-% subjects.ai7_micontinuous.offline1.h.EVENT.DUR(57:64) = [];
-% subjects.ai7_micontinuous.offline1.h.EVENT.TYP(57:64) = [];
-% subjects.ai7_micontinuous.offline1.h.EVENT.POS(65:end) = subjects.ai7_micontinuous.offline1.h.EVENT.POS(65:end) - num_artifacts_samples_run1;
-% subjects.ai7_micontinuous.offline1.h.EVENT.POS(57:64) = [];
-% 
-% subjects.ai7_micontinuous.offline3.h.EVENT.DUR(37:40) = [];
-% subjects.ai7_micontinuous.offline3.h.EVENT.TYP(37:40) = [];
-% subjects.ai7_micontinuous.offline3.h.EVENT.POS(41:end) = subjects.ai7_micontinuous.offline3.h.EVENT.POS(41:end) - num_artifacts_samples_run3;
-% subjects.ai7_micontinuous.offline3.h.EVENT.POS(37:40) = [];
-% 
-% %% Recompute PSD for subj 7
-% 
-% [PSD1, h_PSD1, f1] = get_PSD(subjects.ai7_micontinuous.offline1.s, subjects.ai7_micontinuous.offline1.h);
-% [PSD3, h_PSD3, f3] = get_PSD(subjects.ai7_micontinuous.offline3.s, subjects.ai7_micontinuous.offline3.h);
-% 
-% subjects.ai7_micontinuous.offline1.PSD = PSD1;
-% subjects.ai7_micontinuous.offline1.h_PSD = h_PSD1;
-% subjects.ai7_micontinuous.offline1.f = f1;
-% 
-% subjects.ai7_micontinuous.offline3.PSD = PSD3;
-% subjects.ai7_micontinuous.offline3.h_PSD = h_PSD3;
-% subjects.ai7_micontinuous.offline3.f = f3;
+disp(['Number of trials removed in total: ', num2str(tot_num_rem_trials)])
 
 %% Process the data through log band power computation and ERD/ERS
 
@@ -326,34 +287,34 @@ disp('Done')
 % Significant channels (C3, Cz, C4)
 chns = [7, 9, 11];
 
-ax1 = figure(1); 
+ax1 = figure('units','normalized','outerposition',[0 0 1 1]); 
 ax1.Name = 'Average ERD logBP \mu - channel C3'; % 7
-ax1.Position = [50,100,1600,600];
+ax1.NumberTitle = 'off';
 hold off
 
-ax2 = figure(2); 
+ax2 = figure('units','normalized','outerposition',[0 0 1 1]); 
 ax2.Name = 'Average ERD logBP \mu - channel Cz'; % 9
-ax2.Position = [50,100,1600,600];
+ax2.NumberTitle = 'off';
 hold off
 
-ax3 = figure(3); 
+ax3 = figure('units','normalized','outerposition',[0 0 1 1]); 
 ax3.Name = 'Average ERD logBP \mu - channel C4'; % 11
-ax3.Position = [50,100,1600,600];
+ax3.NumberTitle = 'off';
 hold off
 
-ax4 = figure(4); 
+ax4 = figure('units','normalized','outerposition',[0 0 1 1]); 
 ax4.Name = 'Average ERD logBP \beta - channel C3'; % 7
-ax4.Position = [50,100,1600,600];
+ax4.NumberTitle = 'off';
 hold off
 
-ax5 = figure(5); 
+ax5 = figure('units','normalized','outerposition',[0 0 1 1]); 
 ax5.Name = 'Average ERD logBP \beta - channel Cz'; % 9
-ax5.Position = [50,100,1600,600];
+ax5.NumberTitle = 'off';
 hold off
 
-ax6 = figure(6); 
+ax6 = figure('units','normalized','outerposition',[0 0 1 1]); 
 ax6.Name = 'Average ERD logBP \beta - channel C4'; % 11
-ax6.Position = [50,100,1600,600];
+ax6.NumberTitle = 'off';
 hold off
 
 for i = 1:length(data)
@@ -520,33 +481,6 @@ for i = 1:length(data)
 
 end
 
-%% COMMENTS ON THE PLOTS
-
-% MU BAND
-
-%   - Channel C3:
-% There is a clear desynchronization of logBP during hands task for
-% subjects 1, 3 and 8
-% The ERD is also present for subjects 2, 4, 5 and 6. However, the ERD is
-% not very clear and it is followed by high ERS
-
-%   - Channel Cz:
-% 
-
-%   - Channel C4:
-%
-
-% BETA BAND
-
-%   - Channel C3:
-%
-
-%   - Channel Cz:
-%
-
-%   - Channel C4:
-%
-
 
 %% Grand average for ERD on logarithmic band power
 
@@ -600,7 +534,9 @@ ERDbeta_feet_SE  = std(ERDbeta_feet_tot, 0, 3)./sqrt(length(ERDbeta_feet_tot(1, 
 ERDbeta_hands_SE = std(ERDbeta_hands_tot, 0, 3)./sqrt(length(ERDbeta_hands_tot(1, 1, :)));
 
 % GA temporal plots
-figure;
+hf = figure('units','normalized','outerposition',[0 0 1 1]); 
+hf.Name = 'GA temporal plots';
+hf.NumberTitle = 'off';
 T = 1/sample_rate;                              % [s]
 t = 0:T:(length(ERDmu_feet_GA(:,1,1))-1)*T;     % [s]
 
@@ -615,7 +551,7 @@ xlabel('Time [s]')
 ylabel('[ERD/ERS]')
 title('Grand Average ERD logBP \mu C3')
 legend('both feet', 'both hands')
-% ylim([-60, 170])
+ylim([-40, 100])
 hold off
 
 subplot(232), hold on
@@ -627,7 +563,7 @@ plot(t, ERDmu_hands_GA(:, chns(2)) - ERDmu_hands_SE(:, chns(2)), ':r')
 plot(t, ERDmu_hands_GA(:, chns(2)) + ERDmu_hands_SE(:, chns(2)), ':r')
 xlabel('Time [s]')
 ylabel('[ERD/ERS]')
-% ylim([-60, 170])
+ylim([-40, 100])
 title('Grand Average ERD logBP \mu Cz')
 legend('both feet', 'both hands')
 hold off
@@ -641,7 +577,7 @@ plot(t, ERDmu_hands_GA(:, chns(3)) - ERDmu_hands_SE(:, chns(3)), ':r')
 plot(t, ERDmu_hands_GA(:, chns(3)) + ERDmu_hands_SE(:, chns(3)), ':r')
 xlabel('Time [s]')
 ylabel('[ERD/ERS]')
-% ylim([-60, 170])
+ylim([-40, 100])
 title('Grand Average ERD logBP \mu C4')
 legend('both feet', 'both hands')
 hold off
@@ -655,7 +591,7 @@ plot(t, ERDbeta_hands_GA(:, chns(1)) - ERDbeta_hands_SE(:, chns(1)), ':r')
 plot(t, ERDbeta_hands_GA(:, chns(1)) + ERDbeta_hands_SE(:, chns(1)), ':r')
 xlabel('Time [s]')
 ylabel('[ERD/ERS]')
-% ylim([-60, 170])
+ylim([-40, 100])
 title('Grand Average ERD logBP \beta C3')
 legend('both feet', 'both hands')
 hold off
@@ -669,7 +605,7 @@ plot(t, ERDbeta_hands_GA(:, chns(2)) - ERDbeta_hands_SE(:, chns(2)), ':r')
 plot(t, ERDbeta_hands_GA(:, chns(2)) + ERDbeta_hands_SE(:, chns(2)), ':r')
 xlabel('Time [s]')
 ylabel('[ERD/ERS]')
-% ylim([-60, 170])
+ylim([-40, 100])
 title('Grand Average ERD logBP \beta Cz')
 legend('both feet', 'both hands')
 hold off
@@ -683,7 +619,7 @@ plot(t, ERDbeta_hands_GA(:, chns(3)) - ERDbeta_hands_SE(:, chns(3)), ':r')
 plot(t, ERDbeta_hands_GA(:, chns(3)) + ERDbeta_hands_SE(:, chns(3)), ':r')
 xlabel('Time [s]')
 ylabel('[ERD/ERS]')
-% ylim([-60, 170])
+ylim([-40, 100])
 title('Grand Average ERD logBP \beta C4')
 legend('both feet', 'both hands')
 hold off
@@ -699,27 +635,29 @@ ERD_Act_773 = mean(ERDmu_hands_GA(len+1:end, :), 1);
 ERD_Ref_771 = mean(ERDmu_feet_GA(1:len, :), 1);
 ERD_Act_771 = mean(ERDmu_feet_GA(len+1:end, :), 1);
 
-figure;
+hf = figure('units','normalized','outerposition',[0 0 1 1]); 
+hf.Name = 'Topographical maps mu';
+hf.NumberTitle = 'off';
 subplot(221)
 topoplot(squeeze(ERD_Ref_773), chanlocs16);
 title('Reference - \mu band - both hands')
 colorbar
-clim([-20, 50])
+clim([-30, 60])
 subplot(222)
 topoplot(squeeze(ERD_Act_773), chanlocs16);
 title('Activity - \mu band - both hands')
 colorbar
-clim([-20, 50])
+clim([-30, 60])
 subplot(223)
 topoplot(squeeze(ERD_Ref_771), chanlocs16);
 title('Reference - \mu band - both feet')
 colorbar
-clim([-20, 50])
+clim([-30, 60])
 subplot(224)
 topoplot(squeeze(ERD_Act_771), chanlocs16);
 title('Activity - \mu band - both feet')
 colorbar
-clim([-20, 50])
+clim([-30, 60])
 
 % beta band
 ERD_Ref_773 = mean(ERDbeta_hands_GA(1:len, :), 1);
@@ -727,121 +665,29 @@ ERD_Act_773 = mean(ERDbeta_hands_GA(len+1:end, :), 1);
 ERD_Ref_771 = mean(ERDbeta_feet_GA(1:len, :), 1);
 ERD_Act_771 = mean(ERDbeta_feet_GA(len+1:end, :), 1);
 
-figure;
+hf = figure('units','normalized','outerposition',[0 0 1 1]); 
+hf.Name = 'Topographical maps beta';
+hf.NumberTitle = 'off';
 subplot(221)
 topoplot(squeeze(ERD_Ref_773), chanlocs16);
 title('Reference - \beta band - both hands')
 colorbar
-clim([-20, 50])
+clim([-15, 30])
 subplot(222)
 topoplot(squeeze(ERD_Act_773), chanlocs16);
 title('Activity - \beta band - both hands')
 colorbar
-clim([-20, 50])
+clim([-15, 30])
 subplot(223)
 topoplot(squeeze(ERD_Ref_771), chanlocs16);
 title('Reference - \beta band - both feet')
 colorbar
-clim([-20, 50])
+clim([-15, 30])
 subplot(224)
 topoplot(squeeze(ERD_Act_771), chanlocs16);
 title('Activity - \beta band - both feet')
 colorbar
-clim([-20, 50])
-
-
-%% Statistical analysis NON MI CONVINCE
-
-% For each channel, frequency band and task, consider the statistical
-% difference between average and subject's logBP
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Vedere se fare una funzione
-
-% Results: if stat_diff_... == 0 allora il soggetto è simile alla media,
-% quindi dovrebbe essere rappresentativo. NON so se abbia senso.
-
-
-% HANDS MU
-isgaussian = zeros(1, length(data));
-isgaussian_avg_hands_mu = zeros(1, length(chns));
-stat_diff_mu_hands = zeros(length(chns), length(data));          % channels x subjects
-
-for ch = 1 : length(chns)       % For all the channels (C3, Cz, C4)
-    isgaussian_avg_hands_mu(ch) = ~lillietest(ERDmu_hands_GA(:, chns(ch)));
-
-    for i = 1:length(data)      % For all the subjects
-        subj_name = data(i);
-        isgaussian(i) = ~lillietest(ERDmu_hands_tot(:, chns(ch), i));
-        if isgaussian(i) && isgaussian_avg_hands_mu(ch)
-            stat_diff_mu_hands(i) = ttest2(zscore(ERDmu_hands_tot(:, chns(ch), i)), zscore(ERDmu_hands_GA(:, chns(ch))));
-        else
-            [~, stat_diff_mu_hands(i)] = ranksum(zscore(ERDmu_hands_tot(:, chns(ch), i)), zscore(ERDmu_hands_GA(:, chns(ch))));
-        end
-    end
-end
-
-
-% FEET MU
-isgaussian = zeros(1, length(data));
-isgaussian_avg_feet_mu = zeros(1, length(chns));
-stat_diff_mu_feet = zeros(length(chns), length(data));          % channels x subjects
-
-for ch = 1 : length(chns)       % For all the channels (C3, Cz, C4)
-    isgaussian_avg_feet_mu(ch) = ~lillietest(ERDmu_feet_GA(:, chns(ch)));
-
-    for i = 1:length(data)      % For all the subjects
-        subj_name = data(i);
-        isgaussian(i) = ~lillietest(ERDmu_feet_tot(:, chns(ch), i));
-        if isgaussian(i) && isgaussian_avg_feet_mu(ch)
-            stat_diff_mu_feet(i) = ttest2(ERDmu_feet_tot(:, chns(ch), i), ERDmu_feet_GA(:, chns(ch)));
-        else
-            [~, stat_diff_mu_feet(i)] = ranksum(ERDmu_feet_tot(:, chns(ch), i), ERDmu_feet_GA(:, chns(ch)));
-        end
-    end
-end
-
-
-
-% HANDS BETA
-
-isgaussian = zeros(1, length(data));
-isgaussian_avg_hands_beta = zeros(1, length(chns));
-stat_diff_beta_hands = zeros(length(chns), length(data));          % channels x subjects
-
-for ch = 1 : length(chns)       % For all the channels (C3, Cz, C4)
-    isgaussian_avg_hands_beta(ch) = ~lillietest(ERDbeta_hands_GA(:, chns(ch)));
-
-    for i = 1:length(data)      % For all the subjects
-        subj_name = data(i);
-        isgaussian(i) = ~lillietest(ERDbeta_hands_tot(:, chns(ch), i));
-        if isgaussian(i) && isgaussian_avg_hands_beta(ch)
-            stat_diff_beta_hands(i) = ttest2(ERDbeta_hands_tot(:, chns(ch), i), ERDbeta_hands_GA(:, chns(ch)));
-        else
-            [~, stat_diff_beta_hands(i)] = ranksum(ERDbeta_hands_tot(:, chns(ch), i), ERDbeta_hands_GA(:, chns(ch)));
-        end
-    end
-end
-
-% FEET BETA
-isgaussian = zeros(1, length(data));
-isgaussian_avg_feet_beta = zeros(1, length(chns));
-stat_diff_beta_feet = zeros(length(chns), length(data));          % channels x subjects
-
-for ch = 1 : length(chns)       % For all the channels (C3, Cz, C4)
-    isgaussian_avg_feet_beta(ch) = ~lillietest(ERDbeta_feet_GA(:, chns(ch)));
-
-    for i = 1:length(data)      % For all the subjects
-        subj_name = data(i);
-        isgaussian(i) = ~lillietest(ERDbeta_feet_tot(:, chns(ch), i));
-        if isgaussian(i) && isgaussian_avg_feet_beta(ch)
-            stat_diff_beta_feet(i) = ttest2(ERDbeta_feet_tot(:, chns(ch), i), ERDbeta_feet_GA(:, chns(ch)));
-        else
-            [~, stat_diff_beta_feet(i)] = ranksum(ERDbeta_feet_tot(:, chns(ch), i), ERDbeta_feet_GA(:, chns(ch)));
-        end
-    end
-end
-
-stat_diff_subj = stat_diff_beta_feet | stat_diff_beta_hands | stat_diff_mu_feet | stat_diff_mu_hands;
+clim([-15, 30])
 
 
 %% ERD/ERS on spectrogram
@@ -907,36 +753,39 @@ for i = 1:length(data)
     
 end
 
+clc
+disp('Done')
+
 %% Activity and Reference computation
 
-ax1 = figure(10); 
+ax1 = figure('units','normalized','outerposition',[0 0 1 1]); 
 ax1.Name = 'Average ERD for both feet task - channel C3'; % 7
-ax1.Position = [50,100,1600,600];
+ax1.NumberTitle = 'off';
 hold off
 
-ax2 = figure(11); 
+ax2 = figure('units','normalized','outerposition',[0 0 1 1]); 
 ax2.Name = 'Average ERD for both feet task - channel Cz'; % 9
-ax2.Position = [50,100,1600,600];
+ax2.NumberTitle = 'off';
 hold off
 
-ax3 = figure(12); 
+ax3 = figure('units','normalized','outerposition',[0 0 1 1]); 
 ax3.Name = 'Average ERD for both feet task - channel C4'; % 11
-ax3.Position = [50,100,1600,600];
+ax3.NumberTitle = 'off';
 hold off
 
-ax4 = figure(13); 
+ax4 = figure('units','normalized','outerposition',[0 0 1 1]); 
 ax4.Name = 'Average ERD for both hands task - channel C3'; % 7
-ax4.Position = [50,100,1600,600];
+ax4.NumberTitle = 'off';
 hold off
 
-ax5 = figure(14); 
+ax5 = figure('units','normalized','outerposition',[0 0 1 1]); 
 ax5.Name = 'Average ERD for both hands task - channel Cz'; % 9
-ax5.Position = [50,100,1600,600];
+ax5.NumberTitle = 'off';
 hold off
 
-ax6 = figure(15); 
+ax6 = figure('units','normalized','outerposition',[0 0 1 1]); 
 ax6.Name = 'Average ERD for both hands task - channel C4'; % 11
-ax6.Position = [50,100,1600,600];
+ax6.NumberTitle = 'off';
 hold off
 
 for i = 1:length(data)
@@ -1001,7 +850,6 @@ for i = 1:length(data)
     imagesc(t, f, ERDavg_feet(:, :, 7)')
     colormap hot
     colorbar
-    % clim([-1.1, 1.7])
     name = char(subj_name);
     title(strcat('ERD avg both feet - C3 - ',name(1:3)))
     set(gca,'YDir','normal')
@@ -1013,7 +861,6 @@ for i = 1:length(data)
     imagesc(t, f, ERDavg_feet(:, :, 9)')
     colormap hot
     colorbar
-    % clim([-1.1, 1.7])
     name = char(subj_name);
     title(strcat('ERD avg both feet - Cz - ',name(1:3)))
     set(gca,'YDir','normal')
@@ -1025,7 +872,6 @@ for i = 1:length(data)
     imagesc(t, f, ERDavg_feet(:, :, 11)')
     colormap hot
     colorbar
-    % clim([-1.1, 1.7])
     name = char(subj_name);
     title(strcat('ERD avg both feet - C4 - ',name(1:3)))
     set(gca,'YDir','normal')
@@ -1037,7 +883,6 @@ for i = 1:length(data)
     imagesc(t, f, ERDavg_hands(:, :, chns(1))')
     colormap hot
     colorbar
-    % clim([-1.1, 1.7])
     name = char(subj_name);
     title(strcat('ERD avg both hands - C3 - ',name(1:3)))
     set(gca,'YDir','normal')
@@ -1049,7 +894,6 @@ for i = 1:length(data)
     imagesc(t, f, ERDavg_hands(:, :, chns(2))')
     colormap hot
     colorbar
-    % clim([-1.1, 1.7])
     name = char(subj_name);
     title(strcat('ERD avg both hands - Cz - ',name(1:3)))
     set(gca,'YDir','normal')
@@ -1061,7 +905,6 @@ for i = 1:length(data)
     imagesc(t, f, ERDavg_hands(:, :, chns(3))')
     colormap hot
     colorbar
-    % clim([-1.1, 1.7])
     name = char(subj_name);
     title(strcat('ERD avg both hands - C4 - ',name(1:3)))
     set(gca,'YDir','normal')
@@ -1086,11 +929,9 @@ for i = 1:length(data)
     end
 end
 
-% Save data from all subjects
+% Initialize data structures
 ERDfeet_tot  = zeros(minLen_ERDfeet, length(f), length(channels), length(data));
 ERDhands_tot = zeros(minLen_ERDhands, length(f), length(channels), length(data));
-
-
 
 for i = 1:length(data)
     subj_name = data(i);
@@ -1102,13 +943,13 @@ end
 ERDfeet_GA  = mean(ERDfeet_tot, 4);
 ERDhands_GA = mean(ERDhands_tot, 4);
 
-hf = figure;
+hf = figure('units','normalized','outerposition',[0 0 1 1]); 
 hf.Name = 'GA ERD on PSD';
+hf.NumberTitle = 'off';
 subplot(231)
 imagesc(t, f, ERDhands_GA(:, :, chns(1))')
 colormap hot
 colorbar
-% clim([-1.1, 1.7])
 title('GA ERD avg both hands - C3')
 xlabel('Time [s]')
 ylabel('Frequency [Hz]')
@@ -1118,7 +959,6 @@ subplot(232)
 imagesc(t, f, ERDhands_GA(:, :, chns(2))')
 colormap hot
 colorbar
-% clim([-1.1, 1.7])
 title('GA ERD avg both hands - Cz')
 xlabel('Time [s]')
 ylabel('Frequency [Hz]')
@@ -1128,7 +968,6 @@ subplot(233)
 imagesc(t, f, ERDhands_GA(:, :, chns(3))')
 colormap hot
 colorbar
-% clim([-1.1, 1.7])
 title('GA ERD avg both hands - C4')
 xlabel('Time [s]')
 ylabel('Frequency [Hz]')
@@ -1138,7 +977,6 @@ subplot(234)
 imagesc(t, f, ERDfeet_GA(:, :, chns(1))')
 colormap hot
 colorbar
-% clim([-1.1, 1.7])
 title('GA ERD avg both feet - C3')
 xlabel('Time [s]')
 ylabel('Frequency [Hz]')
@@ -1148,7 +986,6 @@ subplot(235)
 imagesc(t, f, ERDfeet_GA(:, :, chns(2))')
 colormap hot
 colorbar
-% clim([-1.1, 1.7])
 title('GA ERD avg both feet - Cz')
 xlabel('Time [s]')
 ylabel('Frequency [Hz]')
@@ -1158,7 +995,6 @@ subplot(236)
 imagesc(t, f, ERDfeet_GA(:, :, chns(3))')
 colormap hot
 colorbar
-% clim([-1.1, 1.7])
 title('GA ERD avg both feet - C4')
 xlabel('Time [s]')
 ylabel('Frequency [Hz]')
@@ -1166,9 +1002,6 @@ set(gca,'YDir','normal')
 
 
 %% Features calculation and maps visualization on each run
-
-% Define channels' labels
-channels = {"Fz", "FC3", "FC1", "FCz", "FC2", "FC4", "C3", "C1", "Cz", "C2", "C4", "CP3", "CP1", "CPz", "CP2", "CP4"};
 
 for i = 1:length(data)
     subj_name = data(i);
@@ -1215,9 +1048,9 @@ for i = 1:length(data)
 
                 % Feature maps visualization
                 hf = figure;
-                hf.Name = ['Subject ', data{i}(1:3), ' run ', num2str(j)];
+                hf.Name = ['Subject ', data{i}(1:3), ' run ', num2str(j-2)];
                 hf.NumberTitle = 'off';
-                title(['Subject ', data{i}(1:3), ' run ', num2str(j)])
+                title(['Subject ', data{i}(1:3), ' run ', num2str(j-2)])
                 imagesc(f, 1:16, flipud(imrotate(reshape(FS, [23, 16]), 90)))       % Visualize Fisher Score maps
                 xticks(f)
                 xtickangle(90)
@@ -1239,7 +1072,8 @@ end
 
 %% Features calculation and maps visualization on concatenated runs
 
-ax0 = figure();
+
+ax0 = figure('units','normalized','outerposition',[0 0 1 1]); 
 
 for i = 1:length(data)
     subj_name = data(i);
@@ -1555,8 +1389,8 @@ for i = 1:length(data)
 
     % Calculate the accuracy on the remaining trials
     trial_accuracy_rejection(i) = mean(Gk_trial_all(idx_rejection) == subjects.(subj_name).vectors_PSD.Ck(idx_rejection)) * 100;
-    trial_accuracy_rejection_feet(i)  = mean(Gk_trial_all(idx_rejection & subjects.(subj_name).vectors_PSD.Ck == 771) == subjects.(subj_name).data_subjects.vectors_PSD_online.Ck(idx_rejection & subjects.(subj_name).data_subjects.vectors_PSD_online.Ck == 771)) * 100;
-    trial_accuracy_rejection_hands(i) = mean(Gk_trial_all(idx_rejection & subjects.(subj_name).vectors_PSD.Ck == 773) == subjects.(subj_name).data_subjects.vectors_PSD_online.Ck(idx_rejection & subjects.(subj_name).data_subjects.vectors_PSD_online.Ck == 773)) * 100;
+    trial_accuracy_rejection_feet(i)  = mean(Gk_trial_all(idx_rejection & subjects.(subj_name).vectors_PSD.Ck == 771) == subjects.(subj_name).vectors_PSD.Ck(idx_rejection & subjects.(subj_name).vectors_PSD.Ck == 771)) * 100;
+    trial_accuracy_rejection_hands(i) = mean(Gk_trial_all(idx_rejection & subjects.(subj_name).vectors_PSD.Ck == 773) == subjects.(subj_name).vectors_PSD.Ck(idx_rejection & subjects.(subj_name).vectors_PSD.Ck == 773)) * 100;
 
     % Data for the bar graph
     accuracies = [trial_accuracy_rejection(i), trial_accuracy_rejection_feet(i), trial_accuracy_rejection_hands(i)];
@@ -1592,7 +1426,7 @@ end
 % were considered. A subject was considered as representative if:
 % 1) The features of each of his runs were stable;
 % 2) The features included (at least 2) of the most relevant channels for
-% the analysis (C3, Cz, C4) VEDERE SE AGGIUNGERE UNA CITAZIONE PER STA COSA
+% the analysis (C3, Cz, C4).
 
 % For these reasons, subjects aj7, aj9 and ai7 were not considered as
 % representative:
@@ -1636,7 +1470,9 @@ ERDbeta_feet_SE  = std(ERDbeta_feet_tot, 0, 3)./sqrt(length(ERDbeta_feet_tot(1, 
 ERDbeta_hands_SE = std(ERDbeta_hands_tot, 0, 3)./sqrt(length(ERDbeta_hands_tot(1, 1, :)));
 
 % GA temporal plots
-figure;
+hf = figure('units','normalized','outerposition',[0 0 1 1]); 
+hf.Name = 'GA temporal plots - representative subjects';
+hf.NumberTitle = 'off';
 T = 1/sample_rate;                              % [s]
 t = 0:T:(length(ERDmu_feet_GA(:,1,1))-1)*T;     % [s]
 
@@ -1735,7 +1571,7 @@ ERD_Act_773 = mean(ERDmu_hands_GA(len+1:end, :), 1);
 ERD_Ref_771 = mean(ERDmu_feet_GA(1:len, :), 1);
 ERD_Act_771 = mean(ERDmu_feet_GA(len+1:end, :), 1);
 
-hf = figure;
+hf = figure('units','normalized','outerposition',[0 0 1 1]); 
 hf.Name = 'Topographical maps mu';
 hf.NumberTitle = 'off';
 subplot(221)
@@ -1765,7 +1601,7 @@ ERD_Act_773 = mean(ERDbeta_hands_GA(len+1:end, :), 1);
 ERD_Ref_771 = mean(ERDbeta_feet_GA(1:len, :), 1);
 ERD_Act_771 = mean(ERDbeta_feet_GA(len+1:end, :), 1);
 
-hf = figure;
+hf = figure('units','normalized','outerposition',[0 0 1 1]); 
 hf.Name = 'Topographical maps beta';
 hf.NumberTitle = 'off';
 subplot(221)
@@ -1810,7 +1646,8 @@ end
 ERDfeet_GA  = mean(ERDfeet_tot, 4);
 ERDhands_GA = mean(ERDhands_tot, 4);
 
-hf = figure;
+
+hf = figure('units','normalized','outerposition',[0 0 1 1]); 
 hf.Name = 'GA ERD on PSD';
 hf.NumberTitle = 'off';
 subplot(231)
